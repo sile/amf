@@ -11,6 +11,7 @@ pub enum Value {
     Str(Vec<u8>),
     Xml(Vec<u8>),
     Number(f64),
+    Date(Date),
     Object(Rc<Object>),
     Array(Rc<Array>),
     EcmaArray(Rc<EcmaArray>),
@@ -35,6 +36,12 @@ impl Sharable {
             Sharable::TypedObject(ref x) => Value::TypedObject(x.clone()),
         }
     }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct Date {
+    pub unix_time_millis: u64,
+    pub time_zone_secs: i16,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -113,7 +120,7 @@ impl<R> Decoder<R>
             MARKER_ECMA_ARRAY => self.decode_ecma_array(),
             MARKER_OBJECT_END_MARKER => Ok(Value::ObjectEnd),
             MARKER_STRICT_ARRAY => self.decode_strict_array(),
-            MARKER_DATE => unimplemented!(),
+            MARKER_DATE => self.decode_date(),
             MARKER_LONG_STRING => self.decode_long_string(),
             MARKER_UNSUPPORTED => unimplemented!(),
             MARKER_RECORDSET => unimplemented!(),
@@ -198,6 +205,14 @@ impl<R> Decoder<R>
         let v = Rc::new(Array { values: v });
         self.sharables[ref_index] = Some(Sharable::Array(v.clone()));
         Ok(Value::Array(v))
+    }
+    fn decode_date(&mut self) -> io::Result<Value> {
+        let date_millis = try!(self.inner.read_f64::<BigEndian>());
+        let time_zone = try!(self.inner.read_i16::<BigEndian>());
+        Ok(Value::Date(Date {
+            unix_time_millis: date_millis as u64, // TODO
+            time_zone_secs: time_zone as i16,
+        }))
     }
     fn decode_reference(&mut self) -> io::Result<Value> {
         let index = try!(self.inner.read_u16::<BigEndian>()) as usize;
@@ -318,6 +333,16 @@ mod test {
                   (key("1"), Value::Object(object.clone()))][..]);
         assert_eq!(decode_bytes(&input[..]).unwrap(), Value::Object(expected));
     }
+    #[test]
+    fn decodes_time() {
+        let input = include_bytes!("testdata/amf0-time.bin");
+        assert_eq!(decode_bytes(&input[..]).unwrap(),
+                   Value::Date(Date {
+                       unix_time_millis: 1045112400000,
+                       time_zone_secs: 0,
+                   }));
+    }
+
     fn obj(members: &[(Vec<u8>, Value)]) -> Rc<Object> {
         Rc::new(Object { members: Vec::from(members) })
     }
