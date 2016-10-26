@@ -28,6 +28,7 @@ pub enum Value {
     Null,
     Bool(bool),
     Float(f64),
+    Int(i32),
 }
 
 #[derive(Debug)]
@@ -53,7 +54,7 @@ impl<R> Decoder<R>
             MARKER_NULL => Ok(Value::Null),
             MARKER_FALSE => Ok(Value::Bool(false)),
             MARKER_TRUE => Ok(Value::Bool(true)),
-            MARKER_INTEGER => unimplemented!(),
+            MARKER_INTEGER => self.decode_integer(),
             MARKER_DOUBLE => self.decode_double(),
             MARKER_STRING => unimplemented!(),
             MARKER_XML_DOC => unimplemented!(),
@@ -73,6 +74,24 @@ impl<R> Decoder<R>
     fn decode_double(&mut self) -> io::Result<Value> {
         let n = try!(self.inner.read_f64::<BigEndian>());
         Ok(Value::Float(n))
+    }
+    fn decode_integer(&mut self) -> io::Result<Value> {
+        let n = try!(self.decode_u29()) as i32;
+        let n = if n >= (1 << 28) { n - (1 << 29) } else { n };
+        Ok(Value::Int(n))
+    }
+    fn decode_u29(&mut self) -> io::Result<u32> {
+        let mut n = 0;
+        for _ in 0..3 {
+            let b = try!(self.inner.read_u8()) as u32;
+            n = (n << 7) | (b & 0b0111_1111);
+            if (b & 0b1000_0000) == 0 {
+                return Ok(n);
+            }
+        }
+        let b = try!(self.inner.read_u8()) as u32;
+        n = (n << 8) | b;
+        Ok(n)
     }
 }
 
@@ -109,5 +128,16 @@ mod test {
     fn decodes_float() {
         let input = include_bytes!("testdata/amf3-float.bin");
         assert_eq!(decode_bytes(&input[..]).unwrap(), Value::Float(3.5));
+    }
+    #[test]
+    fn decode_integer() {
+        let input = include_bytes!("testdata/amf3-0.bin");
+        assert_eq!(decode_bytes(&input[..]).unwrap(), Value::Int(0));
+
+        let input = include_bytes!("testdata/amf3-min.bin");
+        assert_eq!(decode_bytes(&input[..]).unwrap(), Value::Int(-0x1000_0000));
+
+        let input = include_bytes!("testdata/amf3-max.bin");
+        assert_eq!(decode_bytes(&input[..]).unwrap(), Value::Int(0x0FFF_FFFF));
     }
 }
