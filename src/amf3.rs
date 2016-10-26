@@ -24,7 +24,10 @@ const MARKER_DICTIONARY: u8 = 0x11;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Value {
+    Undefined,
     Null,
+    Bool(bool),
+    Float(f64),
 }
 
 #[derive(Debug)]
@@ -46,12 +49,12 @@ impl<R> Decoder<R>
     fn decode_value(&mut self) -> io::Result<Value> {
         let marker = try!(self.inner.read_u8());
         match marker {
-            MARKER_UNDEFINED => unimplemented!(),
-            MARKER_NULL => unimplemented!(),
-            MARKER_FALSE => unimplemented!(),
-            MARKER_TRUE => unimplemented!(),
+            MARKER_UNDEFINED => Ok(Value::Undefined),
+            MARKER_NULL => Ok(Value::Null),
+            MARKER_FALSE => Ok(Value::Bool(false)),
+            MARKER_TRUE => Ok(Value::Bool(true)),
             MARKER_INTEGER => unimplemented!(),
-            MARKER_DOUBLE => unimplemented!(),
+            MARKER_DOUBLE => self.decode_double(),
             MARKER_STRING => unimplemented!(),
             MARKER_XML_DOC => unimplemented!(),
             MARKER_DATE => unimplemented!(),
@@ -67,6 +70,15 @@ impl<R> Decoder<R>
             _ => panic!(),
         }
     }
+    fn decode_double(&mut self) -> io::Result<Value> {
+        let n = try!(self.inner.read_f64::<BigEndian>());
+        Ok(Value::Float(n))
+    }
+}
+
+pub fn decode_bytes(mut bytes: &[u8]) -> io::Result<Value> {
+    let mut decoder = Decoder::new(&mut bytes);
+    decoder.decode()
 }
 
 #[cfg(test)]
@@ -74,5 +86,28 @@ mod test {
     use super::*;
 
     #[test]
-    fn it_works() {}
+    fn decodes_undefined() {
+        let input = include_bytes!("testdata/amf3-undefined.bin");
+        assert_eq!(decode_bytes(&input[..]).unwrap(), Value::Undefined);
+    }
+    #[test]
+    fn decodes_null() {
+        let input = include_bytes!("testdata/amf3-null.bin");
+        assert_eq!(decode_bytes(&input[..]).unwrap(), Value::Null);
+    }
+    #[test]
+    fn decodes_true() {
+        let input = include_bytes!("testdata/amf3-true.bin");
+        assert_eq!(decode_bytes(&input[..]).unwrap(), Value::Bool(true));
+    }
+    #[test]
+    fn decodes_false() {
+        let input = include_bytes!("testdata/amf3-false.bin");
+        assert_eq!(decode_bytes(&input[..]).unwrap(), Value::Bool(false));
+    }
+    #[test]
+    fn decodes_float() {
+        let input = include_bytes!("testdata/amf3-float.bin");
+        assert_eq!(decode_bytes(&input[..]).unwrap(), Value::Float(3.5));
+    }
 }
