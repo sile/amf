@@ -1,6 +1,8 @@
+use std::io;
 use std::time;
 
 use Pair;
+use DecodeResult;
 
 pub use self::decode::Decoder;
 pub use self::encode::Encoder;
@@ -62,4 +64,16 @@ pub enum Value {
         is_weak: bool,
         entries: Vec<Pair<Value, Value>>,
     },
+}
+impl Value {
+    pub fn read_from<R>(reader: R) -> DecodeResult<Self>
+        where R: io::Read
+    {
+        Decoder::new(reader).decode()
+    }
+    pub fn write_to<W>(&self, writer: W) -> io::Result<()>
+        where W: io::Write
+    {
+        Encoder::new(writer).encode(self)
+    }
 }
