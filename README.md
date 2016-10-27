@@ -1,6 +1,7 @@
 amf
 ===
 
+[![Build Status](https://travis-ci.org/sile/amf.svg?branch=master)](https://travis-ci.org/sile/amf)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 A Rust Implementation of AMF (Action Media Format)
