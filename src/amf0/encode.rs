@@ -52,7 +52,7 @@ impl<W> Encoder<W>
         Ok(())
     }
     fn encode_string(&mut self, s: &str) -> io::Result<()> {
-        if s.len() > 0xFFFF {
+        if s.len() <= 0xFFFF {
             try!(self.inner.write_u8(marker::STRING));
             try!(self.write_str_u16(&s));
         } else {
@@ -72,7 +72,6 @@ impl<W> Encoder<W>
         } else {
             try!(self.inner.write_u8(marker::OBJECT));
         }
-        try!(self.inner.write_u32::<BigEndian>(entries.len() as u32));
         try!(self.encode_pairs(entries));
         Ok(())
     }
@@ -105,6 +104,7 @@ impl<W> Encoder<W>
 
         try!(self.inner.write_u8(marker::DATE));
         try!(self.inner.write_f64::<BigEndian>(millis as f64));
+        try!(self.inner.write_i16::<BigEndian>(0));
         Ok(())
     }
     fn encode_xml_document(&mut self, xml: &str) -> io::Result<()> {
@@ -135,8 +135,129 @@ impl<W> Encoder<W>
             try!(self.write_str_u16(&p.key));
             try!(self.encode(&p.value));
         }
-        try!(self.inner.write_u8(0));
+        try!(self.inner.write_u16::<BigEndian>(0));
         try!(self.inner.write_u8(marker::OBJECT_END_MARKER));
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use std::time;
+    use std::iter;
+    use Pair;
+    use amf3;
+    use super::super::Value;
+
+    macro_rules! encode_eq {
+        ($value:expr, $file:expr) => {
+            {
+                let expected = include_bytes!(concat!("../testdata/", $file));
+                let mut buf = Vec::new();
+                $value.write_to(&mut buf).unwrap();
+                assert_eq!(buf, &expected[..]);
+            }
+        }
+    }
+
+    #[test]
+    fn encodes_number() {
+        encode_eq!(Value::Number(3.5), "amf0-number.bin");
+    }
+    #[test]
+    fn encodes_boolean() {
+        encode_eq!(Value::Boolean(true), "amf0-boolean-true.bin");
+        encode_eq!(Value::Boolean(false), "amf0-boolean-false.bin");
+    }
+    #[test]
+    fn encodes_string() {
+        encode_eq!(Value::String("this is a テスト".to_string()),
+                   "amf0-string.bin");
+        encode_eq!(obj(None,
+                       &[("utf", s("UTF テスト")),
+                         ("zed", n(5.0)),
+                         ("shift", s("Shift テスト"))][..]),
+                   "amf0-complex-encoded-string.bin");
+    }
+    #[test]
+    fn encodes_long_string() {
+        encode_eq!(Value::String(iter::repeat('a').take(0x10013).collect()),
+                   "amf0-long-string.bin");
+    }
+    #[test]
+    fn encodes_object() {
+        encode_eq!(obj(None,
+                       &[("", s("")), ("foo", s("baz")), ("bar", n(3.14))][..]),
+                   "amf0-object.bin");
+        encode_eq!(obj(None, &[("foo", s("bar")), ("baz", Value::Null)][..]),
+                   "amf0-untyped-object.bin");
+    }
+    #[test]
+    fn encodes_null() {
+        encode_eq!(Value::Null, "amf0-null.bin");
+    }
+    #[test]
+    fn encodes_undefined() {
+        encode_eq!(Value::Undefined, "amf0-undefined.bin");
+    }
+    #[test]
+    fn encodes_ecma_array() {
+        let entries = es(&[("0", s("a")), ("1", s("b")), ("2", s("c")), ("3", s("d"))][..]);
+        encode_eq!(Value::EcmaArray { entries: entries },
+                   "amf0-ecma-ordinal-array.bin");
+    }
+    #[test]
+    fn encodes_string_array() {
+        encode_eq!(Value::Array { entries: vec![n(1.0), s("2"), n(3.0)] },
+                   "amf0-strict-array.bin");
+    }
+    #[test]
+    fn encodes_date() {
+        encode_eq!(Value::Date { unix_time: time::Duration::from_millis(1590796800_000) },
+                   "amf0-date.bin");
+        encode_eq!(Value::Date { unix_time: time::Duration::from_millis(1045112400_000) },
+                   "amf0-time.bin");
+    }
+    #[test]
+    fn encodes_xml_document() {
+        encode_eq!(Value::XmlDocument("<parent><child prop=\"test\" /></parent>".to_string()),
+                   "amf0-xml-doc.bin");
+    }
+    #[test]
+    fn encodes_typed_object() {
+        encode_eq!(obj(Some("org.amf.ASClass"),
+                       &[("foo", s("bar")), ("baz", Value::Null)]),
+                   "amf0-typed-object.bin");
+    }
+    #[test]
+    fn encodes_avmplus() {
+        let value = amf3::Value::Array {
+            assoc_entries: vec![],
+            dense_entries: (1..4).map(amf3::Value::Integer).collect(),
+        };
+        encode_eq!(Value::AvmPlus(value), "amf0-avmplus-object.bin");
+    }
+
+    fn s(s: &str) -> Value {
+        Value::String(s.to_string())
+    }
+    fn n(n: f64) -> Value {
+        Value::Number(n)
+    }
+    fn obj(name: Option<&str>, entries: &[(&str, Value)]) -> Value {
+        Value::Object {
+            class_name: name.map(|s| s.to_string()),
+            entries: es(entries),
+        }
+    }
+    fn es(entries: &[(&str, Value)]) -> Vec<Pair<String, Value>> {
+        entries.iter()
+            .map(|e| {
+                Pair {
+                    key: e.0.to_string(),
+                    value: e.1.clone(),
+                }
+            })
+            .collect()
     }
 }

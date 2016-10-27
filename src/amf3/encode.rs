@@ -72,7 +72,7 @@ impl<W> Encoder<W>
     }
     fn encode_integer(&mut self, i: i32) -> io::Result<()> {
         try!(self.inner.write_u8(marker::INTEGER));
-        try!(self.inner.write_i32::<BigEndian>(i));
+        try!(self.encode_u29(i as u32)); // TODO
         Ok(())
     }
     fn encode_double(&mut self, d: f64) -> io::Result<()> {
