@@ -56,6 +56,29 @@ impl<R> Decoder<R> {
     }
 }
 
+#[derive(Debug)]
+pub struct Encoder<W> {
+    inner: W
+}
+impl<W> Encoder<W>
+    where W: io::Write
+{
+    pub fn new(inner: W) -> Self {
+        Encoder{inner: inner}
+    }
+    pub fn encode(&mut self, value: &Value) -> io::Result<()> {
+        match *value {
+            Value::Amf0(ref x) => amf0::Encoder::new(&mut self.inner).encode(x),
+            Value::Amf3(ref x) => amf3::Encoder::new(&mut self.inner).encode(x),            
+        }
+    }
+}
+impl<W> Encoder<W> {
+    pub fn into_inner(self) -> W {
+        self.inner
+    }
+}
+
 
 #[cfg(test)]
 mod tests {
