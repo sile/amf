@@ -64,6 +64,22 @@ impl fmt::Display for DecodeError {
         }
     }
 }
+impl PartialEq for DecodeError {
+    fn eq(&self, other: &Self) -> bool {
+        use self::DecodeError::*;
+        match (self, other) {
+            (&Unknown { marker: x }, &Unknown { marker: y }) => x == y,
+            (&Unsupported { marker: x }, &Unsupported { marker: y }) => x == y,
+            (&UnexpectedObjectEnd, &UnexpectedObjectEnd) => true,
+            (&CircularReference { index: x }, &CircularReference { index: y }) => x == y,
+            (&OutOfRangeRference { index: x }, &OutOfRangeRference { index: y }) => x == y,
+            (&NonZeroTimeZone { offset: x }, &NonZeroTimeZone { offset: y }) => x == y,
+            (&InvalidDate { millis: x }, &InvalidDate { millis: y }) => x == y,
+            (&ExternalizableType { name: ref x }, &ExternalizableType { name: ref y }) => x == y,
+            _ => false,
+        }
+    }
+}
 impl From<io::Error> for DecodeError {
     fn from(f: io::Error) -> Self {
         DecodeError::Io(f)

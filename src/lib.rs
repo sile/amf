@@ -6,6 +6,7 @@ pub mod amf0;
 pub mod amf3;
 pub mod error;
 
+pub type DecodeResult<T> = Result<T, error::DecodeError>;
 pub type Amf0Value = amf0::Value;
 pub type Amf3Value = amf3::Value;
 
@@ -43,12 +44,4 @@ impl Value {
 pub struct Pair<K, V> {
     pub key: K,
     pub value: V,
-}
-
-pub type DecodeResult<T> = Result<T, error::DecodeError>;
-
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn it_works() {}
 }
