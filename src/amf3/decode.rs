@@ -23,6 +23,7 @@ enum SizeOrIndex {
     Index(usize),
 }
 
+/// AMF3 decoder.
 #[derive(Debug)]
 pub struct Decoder<R> {
     inner: R,
@@ -31,6 +32,7 @@ pub struct Decoder<R> {
     complexes: Vec<Value>,
 }
 impl<R> Decoder<R> {
+    /// Unwraps this `Decoder`, returning the underlying reader.
     pub fn into_inner(self) -> R {
         self.inner
     }
@@ -38,6 +40,7 @@ impl<R> Decoder<R> {
 impl<R> Decoder<R>
     where R: io::Read
 {
+    /// Makes a new instance.
     pub fn new(inner: R) -> Self {
         Decoder {
             inner: inner,
@@ -46,6 +49,8 @@ impl<R> Decoder<R>
             complexes: Vec::new(),
         }
     }
+
+    /// Decodes a AMF3 value.
     pub fn decode(&mut self) -> DecodeResult<Value> {
         self.traits.clear();
         self.strings.clear();
@@ -219,7 +224,7 @@ impl<R> Decoder<R>
             SizeOrIndex::Index(index) => {
                 let s = try!(self.strings
                     .get(index)
-                    .ok_or(DecodeError::OutOfRangeRference { index: index }));
+                    .ok_or(DecodeError::OutOfRangeReference { index: index }));
                 Ok(s.clone())
             }
         }
@@ -254,7 +259,7 @@ impl<R> Decoder<R>
             SizeOrIndex::Index(index) => {
                 self.complexes
                     .get(index)
-                    .ok_or(DecodeError::OutOfRangeRference { index: index })
+                    .ok_or(DecodeError::OutOfRangeReference { index: index })
                     .and_then(|v| if *v == Value::Null {
                         Err(DecodeError::CircularReference { index: index })
                     } else {
@@ -287,7 +292,7 @@ impl<R> Decoder<R>
     fn decode_trait(&mut self, u28: usize) -> DecodeResult<Trait> {
         if (u28 & 0b1) == 0 {
             let i = (u28 >> 1) as usize;
-            let t = try!(self.traits.get(i).ok_or(DecodeError::OutOfRangeRference { index: i }));
+            let t = try!(self.traits.get(i).ok_or(DecodeError::OutOfRangeReference { index: i }));
             Ok(t.clone())
         } else if (u28 & 0b10) != 0 {
             let class_name = try!(self.decode_utf8());
@@ -553,11 +558,11 @@ mod test {
         assert_eq!(decode!("amf3-graph-member.bin"),
                    Err(DecodeError::CircularReference { index: 0 }));
         assert_eq!(decode!("amf3-bad-object-ref.bin"),
-                   Err(DecodeError::OutOfRangeRference { index: 10 }));
+                   Err(DecodeError::OutOfRangeReference { index: 10 }));
         assert_eq!(decode!("amf3-bad-trait-ref.bin"),
-                   Err(DecodeError::OutOfRangeRference { index: 4 }));
+                   Err(DecodeError::OutOfRangeReference { index: 4 }));
         assert_eq!(decode!("amf3-bad-string-ref.bin"),
-                   Err(DecodeError::OutOfRangeRference { index: 8 }));
+                   Err(DecodeError::OutOfRangeReference { index: 8 }));
         assert_eq!(decode!("amf3-unknown-marker.bin"),
                    Err(DecodeError::Unknown { marker: 123 }));
         assert_eq!(decode!("amf3-date-invalid-millis.bin"),

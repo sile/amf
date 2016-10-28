@@ -8,11 +8,13 @@ use amf3;
 use super::Value;
 use super::marker;
 
+/// AMF0 encoder.
 #[derive(Debug)]
 pub struct Encoder<W> {
     inner: W,
 }
 impl<W> Encoder<W> {
+    /// Unwraps this `Encoder`, returning the underlying writer.
     pub fn into_inner(self) -> W {
         self.inner
     }
@@ -20,9 +22,11 @@ impl<W> Encoder<W> {
 impl<W> Encoder<W>
     where W: io::Write
 {
+    /// Makes a new instance.
     pub fn new(inner: W) -> Self {
         Encoder { inner: inner }
     }
+    /// Encodes a AMF0 value.
     pub fn encode(&mut self, value: &Value) -> io::Result<()> {
         match *value {
             Value::Number(x) => self.encode_number(x),

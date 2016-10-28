@@ -10,12 +10,14 @@ use error::DecodeError;
 use super::Value;
 use super::marker;
 
+/// AMF0 decoder.
 #[derive(Debug)]
 pub struct Decoder<R> {
     inner: R,
     complexes: Vec<Value>,
 }
 impl<R> Decoder<R> {
+    /// Unwraps this `Decoder`, returning the underlying reader.
     pub fn into_inner(self) -> R {
         self.inner
     }
@@ -23,12 +25,15 @@ impl<R> Decoder<R> {
 impl<R> Decoder<R>
     where R: io::Read
 {
+    /// Makes a new instance.
     pub fn new(inner: R) -> Self {
         Decoder {
             inner: inner,
             complexes: Vec::new(),
         }
     }
+
+    /// Decodes a AMF0 value.
     pub fn decode(&mut self) -> DecodeResult<Value> {
         self.complexes.clear();
         self.decode_value()
@@ -83,7 +88,7 @@ impl<R> Decoder<R>
         let index = try!(self.inner.read_u16::<BigEndian>()) as usize;
         self.complexes
             .get(index)
-            .ok_or(DecodeError::OutOfRangeRference { index: index })
+            .ok_or(DecodeError::OutOfRangeReference { index: index })
             .and_then(|v| if *v == Value::Null {
                 Err(DecodeError::CircularReference { index: index })
             } else {
@@ -320,7 +325,7 @@ mod test {
         decode_unexpected_eof!("amf0-reference-partial.bin");
 
         assert_eq!(decode!("amf0-bad-reference.bin"),
-                   Err(DecodeError::OutOfRangeRference { index: 0 }));
+                   Err(DecodeError::OutOfRangeReference { index: 0 }));
         assert_eq!(decode!("amf0-circular-reference.bin"),
                    Err(DecodeError::CircularReference { index: 0 }));
     }
