@@ -2,6 +2,13 @@
 name = "amf"
 version = "0.1.0"
 authors = ["Takeru Ohta <phjgt308@gmail.com>"]
+description = "A Rust Implementation of AMF (Action Media Format)"
+documentation = "http://sile.github.io/rustdocs/amf/amf/"
+homepage = "https://github.com/sile/amf"
+repository = "https://github.com/sile/amf"
+readme = "README.md"
+keywords = ["AMF"]
+license = "MIT"
 
 [dependencies]
 byteorder = "0.5"
