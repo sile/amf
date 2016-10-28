@@ -1,6 +1,7 @@
 amf
 ===
 
+[![Crates.io: amf](http://meritbadge.herokuapp.com/amf)](https://crates.io/crates/amf)
 [![Build Status](https://travis-ci.org/sile/amf.svg?branch=master)](https://travis-ci.org/sile/amf)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
