@@ -7,11 +7,13 @@ use Pair;
 use super::Value;
 use super::marker;
 
+/// AMF3 encoder.
 #[derive(Debug)]
 pub struct Encoder<W> {
     inner: W,
 }
 impl<W> Encoder<W> {
+    /// Unwraps this `Encoder`, returning the underlying writer.
     pub fn into_inner(self) -> W {
         self.inner
     }
@@ -19,9 +21,12 @@ impl<W> Encoder<W> {
 impl<W> Encoder<W>
     where W: io::Write
 {
+    /// Makes a new instance.
     pub fn new(inner: W) -> Self {
         Encoder { inner: inner }
     }
+
+    /// Encodes a AMF3 value.
     pub fn encode(&mut self, value: &Value) -> io::Result<()> {
         match *value {
             Value::Undefined => self.encode_undefined(),
@@ -72,7 +77,12 @@ impl<W> Encoder<W>
     }
     fn encode_integer(&mut self, i: i32) -> io::Result<()> {
         try!(self.inner.write_u8(marker::INTEGER));
-        try!(self.encode_u29(i as u32)); // TODO
+        let u29 = if i >= 0 {
+            i as u32
+        } else {
+            ((1 << 29) + i) as u32
+        };
+        try!(self.encode_u29(u29));
         Ok(())
     }
     fn encode_double(&mut self, d: f64) -> io::Result<()> {
@@ -93,6 +103,7 @@ impl<W> Encoder<W>
     fn encode_date(&mut self, unix_time: time::Duration) -> io::Result<()> {
         let millis = unix_time.as_secs() * 1000 + (unix_time.subsec_nanos() as u64) / 1000_000;
         try!(self.inner.write_u8(marker::DATE));
+        try!(self.encode_size(0));
         try!(self.inner.write_f64::<BigEndian>(millis as f64));
         Ok(())
     }
@@ -108,11 +119,14 @@ impl<W> Encoder<W>
                      sealed_count: usize,
                      entries: &[Pair<String, Value>])
                      -> io::Result<()> {
+        try!(self.inner.write_u8(marker::OBJECT));
         try!(self.encode_trait(class_name, sealed_count, entries));
         for e in entries.iter().take(sealed_count) {
             try!(self.encode(&e.value));
         }
-        try!(self.encode_pairs(&entries[sealed_count..]));
+        if entries.len() > sealed_count {
+            try!(self.encode_pairs(&entries[sealed_count..]));
+        }
         Ok(())
     }
     fn encode_xml(&mut self, xml: &str) -> io::Result<()> {
@@ -180,16 +194,17 @@ impl<W> Encoder<W>
         }
         Ok(())
     }
-
     fn encode_trait(&mut self,
                     class_name: &Option<String>,
                     sealed_count: usize,
                     entries: &[Pair<String, Value>])
                     -> io::Result<()> {
         assert!(sealed_count <= entries.len());
+        let not_reference = 1;
         let is_externalizable = false as usize;
         let is_dynamic = (sealed_count < entries.len()) as usize;
-        let u28 = (entries.len() << 2) | (is_dynamic << 1) | is_externalizable;
+        let u28 = (sealed_count << 3) | (is_dynamic << 2) | (is_externalizable << 1) |
+                  not_reference;
         try!(self.encode_size(u28));
 
         let class_name = class_name.as_ref().map_or("", |s| &s);
@@ -246,5 +261,200 @@ impl<W> Encoder<W>
         }
         try!(self.encode_utf8(""));
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use std::time;
+    use Pair;
+    use super::super::Value;
+
+    macro_rules! encode_eq {
+        ($value:expr, $file:expr) => {
+            {
+                let expected = include_bytes!(concat!("../testdata/", $file));
+                let mut buf = Vec::new();
+                $value.write_to(&mut buf).unwrap();
+                assert_eq!(buf, &expected[..]);
+            }
+        }
+    }
+    macro_rules! encode_and_decode {
+        ($value:expr) => {
+            {
+                let v = $value;
+                let mut buf = Vec::new();
+                v.write_to(&mut buf).unwrap();
+                assert_eq!(v, Value::read_from(&mut &buf[..]).unwrap());
+            }
+        }
+    }
+
+    #[test]
+    fn encodes_undefined() {
+        encode_eq!(Value::Undefined, "amf3-undefined.bin");
+    }
+    #[test]
+    fn encodes_null() {
+        encode_eq!(Value::Null, "amf3-null.bin");
+    }
+    #[test]
+    fn encodes_boolean() {
+        encode_eq!(Value::Boolean(true), "amf3-true.bin");
+        encode_eq!(Value::Boolean(false), "amf3-false.bin");
+    }
+    #[test]
+    fn encodes_integer() {
+        encode_eq!(Value::Integer(0), "amf3-0.bin");
+        encode_eq!(Value::Integer(0b1000_0000), "amf3-integer-2byte.bin");
+        encode_eq!(Value::Integer(0b100_0000_0000_0000),
+                   "amf3-integer-3byte.bin");
+        encode_eq!(Value::Integer(-0x1000_0000), "amf3-min.bin");
+        encode_eq!(Value::Integer(0xFFF_FFFF), "amf3-max.bin");
+    }
+    #[test]
+    fn encodes_double() {
+        encode_eq!(Value::Double(3.5), "amf3-float.bin");
+        encode_eq!(Value::Double(2f64.powf(1000f64)), "amf3-bignum.bin");
+        encode_eq!(Value::Double(-0x1000_0001 as f64), "amf3-large-min.bin");
+        encode_eq!(Value::Double(0x1000_0000 as f64), "amf3-large-max.bin");
+    }
+    #[test]
+    fn encodes_string() {
+        encode_eq!(s("String . String"), "amf3-string.bin");
+        encode_eq!(dense_array(&[i(5), s("Shift テスト"), s("UTF テスト"), i(5)][..]),
+                   "amf3-complex-encoded-string-array.bin");
+    }
+    #[test]
+    fn encodes_array() {
+        encode_eq!(dense_array(&[i(1), i(2), i(3), i(4), i(5)][..]),
+                   "amf3-primitive-array.bin");
+        encode_and_decode!(Value::Array {
+            assoc_entries: [("2", s("bar3")), ("foo", s("bar")), ("asdf", s("fdsa"))]
+                .iter()
+                .map(|e| pair(e.0, e.1.clone()))
+                .collect(),
+            dense_entries: vec![s("bar"), s("bar1"), s("bar2")],
+        });
+    }
+    #[test]
+    fn encodes_object() {
+        encode_eq!(typed_obj("org.amf.ASClass",
+                             &[("foo", s("bar")), ("baz", Value::Null)][..]),
+                   "amf3-typed-object.bin");
+        encode_eq!(obj(&[("foo", s("bar")), ("answer", i(42))][..]),
+                   "amf3-hash.bin");
+    }
+    #[test]
+    fn encodes_xml_doc() {
+        encode_eq!(Value::XmlDocument("<parent><child prop=\"test\" /></parent>".to_string()),
+                   "amf3-xml-doc.bin");
+    }
+    #[test]
+    fn encodes_xml() {
+        let xml = Value::Xml("<parent><child prop=\"test\"/></parent>".to_string());
+        encode_eq!(xml, "amf3-xml.bin");
+    }
+    #[test]
+    fn encodes_byte_array() {
+        encode_eq!(Value::ByteArray(vec![0, 3, 227, 129, 147, 227, 130, 140, 116, 101, 115, 116,
+                                         64]),
+                   "amf3-byte-array.bin");
+    }
+    #[test]
+    fn encodes_date() {
+        let d = Value::Date { unix_time: time::Duration::from_secs(0) };
+        encode_eq!(d, "amf3-date.bin");
+    }
+    #[test]
+    fn encodes_dictionary() {
+        let entries = vec![(s("bar"), s("asdf1")),
+                           (typed_obj("org.amf.ASClass",
+                                      &[("foo", s("baz")), ("baz", Value::Null)][..]),
+                            s("asdf2"))];
+        encode_and_decode!(dic(&entries));
+        encode_eq!(dic(&[][..]), "amf3-empty-dictionary.bin");
+    }
+    #[test]
+    fn encodes_vector() {
+        encode_eq!(Value::IntVector {
+                       is_fixed: false,
+                       entries: vec![4, -20, 12],
+                   },
+                   "amf3-vector-int.bin");
+
+        encode_eq!(Value::UintVector {
+                       is_fixed: false,
+                       entries: vec![4, 20, 12],
+                   },
+                   "amf3-vector-uint.bin");
+
+        encode_eq!(Value::DoubleVector {
+                       is_fixed: false,
+                       entries: vec![4.3, -20.6],
+                   },
+                   "amf3-vector-double.bin");
+
+        let objects = vec![
+            typed_obj("org.amf.ASClass", &[("foo", s("foo")), ("baz", Value::Null)][..]),
+            typed_obj("org.amf.ASClass", &[("foo", s("bar")), ("baz", Value::Null)][..]),
+            typed_obj("org.amf.ASClass", &[("foo", s("baz")), ("baz", Value::Null)][..]),
+        ];
+        encode_and_decode!(Value::ObjectVector {
+            class_name: Some("org.amf.ASClass".to_string()),
+            is_fixed: false,
+            entries: objects,
+        });
+    }
+
+    fn i(i: i32) -> Value {
+        Value::Integer(i)
+    }
+    fn s(s: &str) -> Value {
+        Value::String(s.to_string())
+    }
+    fn pair(key: &str, value: Value) -> Pair<String, Value> {
+        Pair {
+            key: key.to_string(),
+            value: value,
+        }
+    }
+    fn dense_array(entries: &[Value]) -> Value {
+        Value::Array {
+            assoc_entries: Vec::new(),
+            dense_entries: entries.iter().cloned().collect(),
+        }
+    }
+    fn dic(entries: &[(Value, Value)]) -> Value {
+        Value::Dictionary {
+            is_weak: false,
+            entries: entries.iter()
+                .map(|e| {
+                    Pair {
+                        key: e.0.clone(),
+                        value: e.1.clone(),
+                    }
+                })
+                .collect(),
+        }
+    }
+    fn obj(entries: &[(&str, Value)]) -> Value {
+        Value::Object {
+            class_name: None,
+            sealed_count: 0,
+            entries: entries.iter()
+                .map(|e| pair(e.0, e.1.clone()))
+                .collect(),
+        }
+    }
+    fn typed_obj(class: &str, entries: &[(&str, Value)]) -> Value {
+        Value::Object {
+            class_name: Some(class.to_string()),
+            sealed_count: entries.len(),
+            entries: entries.iter()
+                .map(|e| pair(e.0, e.1.clone()))
+                .collect(),
+        }
     }
 }
