@@ -207,4 +207,54 @@ impl Value {
     {
         Encoder::new(writer).encode(self)
     }
+
+    /// Tries to convert the value as a `str` reference.
+    pub fn try_as_str(&self) -> Option<&str> {
+        match *self {
+            Value::String(ref x) => Some(x.as_str()),
+            Value::XmlDocument(ref x) => Some(x.as_str()),
+            Value::Xml(ref x) => Some(x.as_str()),
+            _ => None,
+        }
+    }
+
+    /// Tries to convert the value as a `f64`.
+    pub fn try_as_f64(&self) -> Option<f64> {
+        match *self {
+            Value::Integer(x) => Some(x as f64),
+            Value::Double(x) => Some(x),
+            _ => None,
+        }
+    }
+
+    /// Tries to convert the value as an iterator of the contained values.
+    pub fn try_into_values(self) -> Result<Box<Iterator<Item = Value>>, Self> {
+        match self {
+            Value::Array { dense_entries, .. } => Ok(Box::new(dense_entries.into_iter())),
+            Value::IntVector { entries, .. } => {
+                Ok(Box::new(entries.into_iter().map(Value::Integer)))
+            }
+            Value::UintVector { entries, .. } => {
+                Ok(Box::new(entries.into_iter().map(|n| Value::Double(n as f64))))
+            }
+            Value::DoubleVector { entries, .. } => {
+                Ok(Box::new(entries.into_iter().map(Value::Double)))
+            }
+            Value::ObjectVector { entries, .. } => Ok(Box::new(entries.into_iter())),
+            _ => Err(self),
+        }
+    }
+
+    /// Tries to convert the value as an iterator of the contained pairs.
+    pub fn try_into_pairs(self) -> Result<Box<Iterator<Item = (String, Value)>>, Self> {
+        match self {
+            Value::Array { assoc_entries, .. } => {
+                Ok(Box::new(assoc_entries.into_iter().map(|p| (p.key, p.value))))
+            }
+            Value::Object { entries, .. } => {
+                Ok(Box::new(entries.into_iter().map(|p| (p.key, p.value))))
+            }
+            _ => Err(self),
+        }
+    }
 }

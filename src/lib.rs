@@ -75,6 +75,48 @@ impl Value {
             Value::Amf3(ref x) => x.write_to(writer),
         }
     }
+
+    /// Tries to convert the value as a `str` reference.
+    pub fn try_as_str(&self) -> Option<&str> {
+        match *self {
+            Value::Amf0(ref x) => x.try_as_str(),
+            Value::Amf3(ref x) => x.try_as_str(),
+        }
+    }
+
+    /// Tries to convert the value as a `f64`.
+    pub fn try_as_f64(&self) -> Option<f64> {
+        match *self {
+            Value::Amf0(ref x) => x.try_as_f64(),
+            Value::Amf3(ref x) => x.try_as_f64(),
+        }
+    }
+
+    /// Tries to convert the value as an iterator of the contained values.
+    pub fn try_into_values(self) -> Result<Box<Iterator<Item = Value>>, Self> {
+        match self {
+            Value::Amf0(x) => x.try_into_values().map_err(Value::Amf0),
+            Value::Amf3(x) => {
+                x.try_into_values()
+                    .map(|iter| iter.map(Value::Amf3))
+                    .map(iter_boxed)
+                    .map_err(Value::Amf3)
+            }
+        }
+    }
+
+    /// Tries to convert the value as an iterator of the contained pairs.
+    pub fn try_into_pairs(self) -> Result<Box<Iterator<Item = (String, Value)>>, Self> {
+        match self {
+            Value::Amf0(x) => x.try_into_pairs().map_err(Value::Amf0),
+            Value::Amf3(x) => {
+                x.try_into_pairs()
+                    .map(|iter| iter.map(|(k, v)| (k, Value::Amf3(v))))
+                    .map(iter_boxed)
+                    .map_err(Value::Amf3)
+            }
+        }
+    }
 }
 impl From<Amf0Value> for Value {
     fn from(f: Amf0Value) -> Value {
@@ -95,4 +137,10 @@ pub struct Pair<K, V> {
 
     /// The value of the pair.
     pub value: V,
+}
+
+fn iter_boxed<I, T>(iter: I) -> Box<Iterator<Item = T>>
+    where I: Iterator<Item = T> + 'static
+{
+    Box::new(iter)
 }

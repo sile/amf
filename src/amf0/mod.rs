@@ -148,4 +148,56 @@ impl Value {
     {
         Encoder::new(writer).encode(self)
     }
+
+    /// Tries to convert the value as a `str` reference.
+    pub fn try_as_str(&self) -> Option<&str> {
+        match *self {
+            Value::String(ref x) => Some(x.as_ref()),
+            Value::XmlDocument(ref x) => Some(x.as_ref()),
+            Value::AvmPlus(ref x) => x.try_as_str(),
+            _ => None,
+        }
+    }
+
+    /// Tries to convert the value as a `f64`.
+    pub fn try_as_f64(&self) -> Option<f64> {
+        match *self {
+            Value::Number(x) => Some(x),
+            Value::AvmPlus(ref x) => x.try_as_f64(),
+            _ => None,
+        }
+    }
+
+    /// Tries to convert the value as an iterator of the contained values.
+    pub fn try_into_values(self) -> Result<Box<Iterator<Item = super::Value>>, Self> {
+        match self {
+            Value::Array { entries } => Ok(Box::new(entries.into_iter().map(super::Value::Amf0))),
+            Value::AvmPlus(x) => {
+                x.try_into_values()
+                    .map(|iter| iter.map(super::Value::Amf3))
+                    .map(super::iter_boxed)
+                    .map_err(Value::AvmPlus)
+            }
+            _ => Err(self),
+        }
+    }
+
+    /// Tries to convert the value as an iterator of the contained pairs.
+    pub fn try_into_pairs(self) -> Result<Box<Iterator<Item = (String, super::Value)>>, Self> {
+        match self {
+            Value::EcmaArray { entries } => {
+                Ok(Box::new(entries.into_iter().map(|p| (p.key, super::Value::Amf0(p.value)))))
+            }
+            Value::Object { entries, .. } => {
+                Ok(Box::new(entries.into_iter().map(|p| (p.key, super::Value::Amf0(p.value)))))
+            }
+            Value::AvmPlus(x) => {
+                x.try_into_pairs()
+                    .map(|ps| ps.map(|(k, v)| (k, super::Value::Amf3(v))))
+                    .map(super::iter_boxed)
+                    .map_err(Value::AvmPlus)
+            }
+            _ => Err(self),
+        }
+    }
 }
