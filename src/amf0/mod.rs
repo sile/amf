@@ -201,3 +201,39 @@ impl Value {
         }
     }
 }
+
+/// Makes a `String` value.
+pub fn string<T>(t: T) -> Value
+    where String: From<T>
+{
+    Value::String(From::from(t))
+}
+
+/// Makes a `Number` value.
+pub fn number<T>(t: T) -> Value
+    where f64: From<T>
+{
+    Value::Number(From::from(t))
+}
+
+/// Makes an anonymous `Object` value.
+pub fn object<I, K>(entries: I) -> Value
+    where I: Iterator<Item = (K, Value)>,
+          String: From<K>
+{
+    Value::Object {
+        class_name: None,
+        entries: entries.map(|(k, v)| {
+                Pair {
+                    key: From::from(k),
+                    value: v,
+                }
+            })
+            .collect(),
+    }
+}
+
+/// Make a strict `Array` value.
+pub fn array(entries: Vec<Value>) -> Value {
+    Value::Array { entries: entries }
+}
