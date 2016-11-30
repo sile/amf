@@ -11,7 +11,7 @@ A Rust Implementation of AMF (Action Media Format).
 Documentation
 -------------
 
-See [RustDoc Documentation](http://sile.github.io/rustdocs/amf/amf/).
+See [RustDoc Documentation](https://docs.rs/amf/).
 
 Installation
 ------------
