@@ -36,6 +36,10 @@ impl<R> Decoder<R> {
     pub fn into_inner(self) -> R {
         self.inner
     }
+    /// Returns a reference to the underlying reader.
+    pub fn inner(&mut self) -> &mut R {
+        &mut self.inner
+    }
 }
 impl<R> Decoder<R>
     where R: io::Read
@@ -211,7 +215,11 @@ impl<R> Decoder<R>
         })
     }
 
-    fn decode_utf8(&mut self) -> DecodeResult<String> {
+    /// Decode an AMF3 string.
+    ///
+    /// Use this if you need to decode an AMF3 string outside of value context.
+    /// An example for this is reading keys in Local Shared Object file.
+    pub fn decode_utf8(&mut self) -> DecodeResult<String> {
         match try!(self.decode_size_or_index()) {
             SizeOrIndex::Size(len) => {
                 let bytes = try!(self.read_bytes(len));
