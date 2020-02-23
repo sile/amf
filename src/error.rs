@@ -62,22 +62,7 @@ pub enum DecodeError {
     },
 }
 impl error::Error for DecodeError {
-    fn description(&self) -> &str {
-        use self::DecodeError::*;
-        match *self {
-            Io(ref x) => x.description(),
-            String(ref x) => x.description(),
-            Unknown { .. } => "Unknown marker",
-            Unsupported { .. } => "Unsupported type",
-            UnexpectedObjectEnd => "Unexpected occurrence of object-end-marker",
-            CircularReference { .. } => "Circular reference",
-            OutOfRangeReference { .. } => "Out-of-range reference index",
-            NonZeroTimeZone { .. } => "Non zero time zone",
-            InvalidDate { .. } => "Invalid date",
-            ExternalizableType { .. } => "Unsupported externalizable type",
-        }
-    }
-    fn cause(&self) -> Option<&dyn error::Error> {
+    fn source(&self) -> Option<&(dyn error::Error + 'static)> {
         use self::DecodeError::*;
         match *self {
             Io(ref x) => x.source(),
