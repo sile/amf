@@ -77,7 +77,7 @@ impl error::Error for DecodeError {
             ExternalizableType { .. } => "Unsupported externalizable type",
         }
     }
-    fn cause(&self) -> Option<&error::Error> {
+    fn cause(&self) -> Option<&dyn error::Error> {
         use self::DecodeError::*;
         match *self {
             Io(ref x) => x.cause(),

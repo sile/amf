@@ -95,7 +95,7 @@ impl Value {
     }
 
     /// Tries to convert the value as an iterator of the contained values.
-    pub fn try_into_values(self) -> Result<Box<Iterator<Item = Value>>, Self> {
+    pub fn try_into_values(self) -> Result<Box<dyn Iterator<Item = Value>>, Self> {
         match self {
             Value::Amf0(x) => x.try_into_values().map_err(Value::Amf0),
             Value::Amf3(x) => x
@@ -107,7 +107,7 @@ impl Value {
     }
 
     /// Tries to convert the value as an iterator of the contained pairs.
-    pub fn try_into_pairs(self) -> Result<Box<Iterator<Item = (String, Value)>>, Self> {
+    pub fn try_into_pairs(self) -> Result<Box<dyn Iterator<Item = (String, Value)>>, Self> {
         match self {
             Value::Amf0(x) => x.try_into_pairs().map_err(Value::Amf0),
             Value::Amf3(x) => x
@@ -139,7 +139,7 @@ pub struct Pair<K, V> {
     pub value: V,
 }
 
-fn iter_boxed<I, T>(iter: I) -> Box<Iterator<Item = T>>
+fn iter_boxed<I, T>(iter: I) -> Box<dyn Iterator<Item = T>>
 where
     I: Iterator<Item = T> + 'static,
 {

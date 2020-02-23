@@ -171,7 +171,7 @@ impl Value {
     }
 
     /// Tries to convert the value as an iterator of the contained values.
-    pub fn try_into_values(self) -> Result<Box<Iterator<Item = super::Value>>, Self> {
+    pub fn try_into_values(self) -> Result<Box<dyn Iterator<Item = super::Value>>, Self> {
         match self {
             Value::Array { entries } => Ok(Box::new(entries.into_iter().map(super::Value::Amf0))),
             Value::AvmPlus(x) => x
@@ -184,7 +184,7 @@ impl Value {
     }
 
     /// Tries to convert the value as an iterator of the contained pairs.
-    pub fn try_into_pairs(self) -> Result<Box<Iterator<Item = (String, super::Value)>>, Self> {
+    pub fn try_into_pairs(self) -> Result<Box<dyn Iterator<Item = (String, super::Value)>>, Self> {
         match self {
             Value::EcmaArray { entries } => Ok(Box::new(
                 entries
