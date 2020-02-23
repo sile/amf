@@ -148,6 +148,7 @@ where
 
 #[cfg(test)]
 mod tests {
+    #![allow(clippy::approx_constant)]
     use super::super::Value;
     use crate::amf3;
     use crate::Pair;
