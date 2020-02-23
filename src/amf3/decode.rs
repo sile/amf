@@ -387,15 +387,15 @@ mod tests {
         decode_eq!("amf3-0.bin", Value::Integer(0));
         decode_eq!("amf3-min.bin", Value::Integer(-0x1000_0000));
         decode_eq!("amf3-max.bin", Value::Integer(0x0FFF_FFFF));
-        decode_eq!("amf3-integer-2byte.bin", Value::Integer(0b10000000));
-        decode_eq!("amf3-integer-3byte.bin", Value::Integer(0b100000000000000));
+        decode_eq!("amf3-integer-2byte.bin", Value::Integer(0b1000_0000));
+        decode_eq!("amf3-integer-3byte.bin", Value::Integer(0b100_0000_0000_0000));
     }
     #[test]
     fn decodes_double() {
         decode_eq!("amf3-float.bin", Value::Double(3.5));
         decode_eq!("amf3-bignum.bin", Value::Double(2f64.powf(1000f64)));
         decode_eq!("amf3-large-min.bin", Value::Double(-0x1000_0001 as f64));
-        decode_eq!("amf3-large-max.bin", Value::Double(0x1000_0000 as f64));
+        decode_eq!("amf3-large-max.bin", Value::Double(268_435_456_f64));
         decode_eq!(
             "amf3-double-positive-infinity.bin",
             Value::Double(f64::INFINITY)
@@ -504,7 +504,7 @@ mod tests {
                 &[
                     dense_array(&[o.clone(), o.clone()][..]),
                     s("bar"),
-                    dense_array(&[o.clone(), o.clone()][..])
+                    dense_array(&[o.clone(), o][..])
                 ][..]
             )
         );
@@ -578,7 +578,7 @@ mod tests {
             ])
         );
 
-        let b = Value::ByteArray("ASDF".as_bytes().iter().cloned().collect());
+        let b = Value::ByteArray(b"ASDF".to_vec());
         decode_eq!("amf3-byte-array-ref.bin", dense_array(&[b.clone(), b][..]));
     }
     #[test]
@@ -706,7 +706,7 @@ mod tests {
     fn dense_array(entries: &[Value]) -> Value {
         Value::Array {
             assoc_entries: Vec::new(),
-            dense_entries: entries.iter().cloned().collect(),
+            dense_entries: entries.to_vec(),
         }
     }
     fn pair(key: &str, value: Value) -> Pair<String, Value> {

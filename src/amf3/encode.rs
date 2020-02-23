@@ -335,7 +335,7 @@ mod tests {
         encode_eq!(Value::Double(3.5), "amf3-float.bin");
         encode_eq!(Value::Double(2f64.powf(1000f64)), "amf3-bignum.bin");
         encode_eq!(Value::Double(-0x1000_0001 as f64), "amf3-large-min.bin");
-        encode_eq!(Value::Double(0x1000_0000 as f64), "amf3-large-max.bin");
+        encode_eq!(Value::Double(268_435_456_f64), "amf3-large-max.bin");
     }
     #[test]
     fn encodes_string() {
@@ -478,7 +478,7 @@ mod tests {
     fn dense_array(entries: &[Value]) -> Value {
         Value::Array {
             assoc_entries: Vec::new(),
-            dense_entries: entries.iter().cloned().collect(),
+            dense_entries: entries.to_vec(),
         }
     }
     fn dic(entries: &[(Value, Value)]) -> Value {
