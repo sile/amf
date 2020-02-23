@@ -239,5 +239,5 @@ where
 
 /// Make a strict `Array` value.
 pub fn array(entries: Vec<Value>) -> Value {
-    Value::Array { entries: entries }
+    Value::Array { entries }
 }

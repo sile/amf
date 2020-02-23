@@ -23,7 +23,7 @@ where
 {
     /// Makes a new instance.
     pub fn new(inner: W) -> Self {
-        Encoder { inner: inner }
+        Encoder { inner }
     }
     /// Encodes a AMF0 value.
     pub fn encode(&mut self, value: &Value) -> io::Result<()> {
@@ -105,7 +105,7 @@ where
         Ok(())
     }
     fn encode_date(&mut self, unix_time: time::Duration) -> io::Result<()> {
-        let millis = unix_time.as_secs() * 1000 + (unix_time.subsec_nanos() as u64) / 1000_000;
+        let millis = unix_time.as_secs() * 1000 + (unix_time.subsec_nanos() as u64) / 1_000_000;
 
         self.inner.write_u8(marker::DATE)?;
         self.inner.write_f64::<BigEndian>(millis as f64)?;

@@ -45,7 +45,7 @@ where
     /// Makes a new instance.
     pub fn new(inner: R) -> Self {
         Decoder {
-            inner: inner,
+            inner,
             traits: Vec::new(),
             strings: Vec::new(),
             complexes: Vec::new(),
@@ -81,7 +81,7 @@ where
             marker::VECTOR_DOUBLE => self.decode_vector_double(),
             marker::VECTOR_OBJECT => self.decode_vector_object(),
             marker::DICTIONARY => self.decode_dictionary(),
-            _ => Err(DecodeError::Unknown { marker: marker }),
+            _ => Err(DecodeError::Unknown { marker }),
         }
     }
 
@@ -105,7 +105,7 @@ where
         self.decode_complex_type(|this, _| {
             let millis = this.inner.read_f64::<BigEndian>()?;
             if !(millis.is_finite() && millis.is_sign_positive()) {
-                Err(DecodeError::InvalidDate { millis: millis })
+                Err(DecodeError::InvalidDate { millis })
             } else {
                 Ok(Value::Date {
                     unix_time: time::Duration::from_millis(millis as u64),
@@ -144,7 +144,7 @@ where
             Ok(Value::Object {
                 class_name: amf_trait.class_name,
                 sealed_count: amf_trait.fields.len(),
-                entries: entries,
+                entries,
             })
         })
     }
@@ -160,10 +160,7 @@ where
             let entries = (0..count)
                 .map(|_| this.inner.read_i32::<BigEndian>())
                 .collect::<Result<_, _>>()?;
-            Ok(Value::IntVector {
-                is_fixed: is_fixed,
-                entries: entries,
-            })
+            Ok(Value::IntVector { is_fixed, entries })
         })
     }
     fn decode_vector_uint(&mut self) -> DecodeResult<Value> {
@@ -172,10 +169,7 @@ where
             let entries = (0..count)
                 .map(|_| this.inner.read_u32::<BigEndian>())
                 .collect::<Result<_, _>>()?;
-            Ok(Value::UintVector {
-                is_fixed: is_fixed,
-                entries: entries,
-            })
+            Ok(Value::UintVector { is_fixed, entries })
         })
     }
     fn decode_vector_double(&mut self) -> DecodeResult<Value> {
@@ -184,10 +178,7 @@ where
             let entries = (0..count)
                 .map(|_| this.inner.read_f64::<BigEndian>())
                 .collect::<Result<_, _>>()?;
-            Ok(Value::DoubleVector {
-                is_fixed: is_fixed,
-                entries: entries,
-            })
+            Ok(Value::DoubleVector { is_fixed, entries })
         })
     }
     fn decode_vector_object(&mut self) -> DecodeResult<Value> {
@@ -203,8 +194,8 @@ where
                 } else {
                     Some(class_name)
                 },
-                is_fixed: is_fixed,
-                entries: entries,
+                is_fixed,
+                entries,
             })
         })
     }
@@ -219,10 +210,7 @@ where
                     })
                 })
                 .collect::<DecodeResult<_>>()?;
-            Ok(Value::Dictionary {
-                is_weak: is_weak,
-                entries: entries,
-            })
+            Ok(Value::Dictionary { is_weak, entries })
         })
     }
 
@@ -244,7 +232,7 @@ where
                 let s = self
                     .strings
                     .get(index)
-                    .ok_or(DecodeError::OutOfRangeReference { index: index })?;
+                    .ok_or(DecodeError::OutOfRangeReference { index })?;
                 Ok(s.clone())
             }
         }
@@ -280,10 +268,10 @@ where
             SizeOrIndex::Index(index) => self
                 .complexes
                 .get(index)
-                .ok_or(DecodeError::OutOfRangeReference { index: index })
+                .ok_or(DecodeError::OutOfRangeReference { index })
                 .and_then(|v| {
                     if *v == Value::Null {
-                        Err(DecodeError::CircularReference { index: index })
+                        Err(DecodeError::CircularReference { index })
                     } else {
                         Ok(v.clone())
                     }
@@ -305,10 +293,7 @@ where
                 return Ok(pairs);
             }
             let value = self.decode_value()?;
-            pairs.push(Pair {
-                key: key,
-                value: value,
-            });
+            pairs.push(Pair { key, value });
         }
     }
     fn decode_trait(&mut self, u28: usize) -> DecodeResult<Trait> {
@@ -336,8 +321,8 @@ where
                 } else {
                     Some(class_name)
                 },
-                is_dynamic: is_dynamic,
-                fields: fields,
+                is_dynamic,
+                fields,
             };
             self.traits.push(t.clone());
             Ok(t)
@@ -727,7 +712,7 @@ mod tests {
     fn pair(key: &str, value: Value) -> Pair<String, Value> {
         Pair {
             key: key.to_string(),
-            value: value,
+            value,
         }
     }
     fn dic(entries: &[(Value, Value)]) -> Value {

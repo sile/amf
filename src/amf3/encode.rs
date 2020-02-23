@@ -22,7 +22,7 @@ where
 {
     /// Makes a new instance.
     pub fn new(inner: W) -> Self {
-        Encoder { inner: inner }
+        Encoder { inner }
     }
 
     /// Encodes a AMF3 value.
@@ -113,7 +113,7 @@ where
         Ok(())
     }
     fn encode_date(&mut self, unix_time: time::Duration) -> io::Result<()> {
-        let millis = unix_time.as_secs() * 1000 + (unix_time.subsec_nanos() as u64) / 1000_000;
+        let millis = unix_time.as_secs() * 1000 + (unix_time.subsec_nanos() as u64) / 1_000_000;
         self.inner.write_u8(marker::DATE)?;
         self.encode_size(0)?;
         self.inner.write_f64::<BigEndian>(millis as f64)?;
@@ -238,6 +238,7 @@ where
         let not_reference = 1;
         self.encode_u29(((size << 1) | not_reference) as u32)
     }
+    #[allow(clippy::zero_prefixed_literal, clippy::identity_op)]
     fn encode_u29(&mut self, u29: u32) -> io::Result<()> {
         if u29 < 0x80 {
             self.inner.write_u8(u29 as u8)?;
@@ -471,7 +472,7 @@ mod tests {
     fn pair(key: &str, value: Value) -> Pair<String, Value> {
         Pair {
             key: key.to_string(),
-            value: value,
+            value,
         }
     }
     fn dense_array(entries: &[Value]) -> Value {

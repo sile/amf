@@ -26,7 +26,7 @@ where
     /// Makes a new instance.
     pub fn new(inner: R) -> Self {
         Decoder {
-            inner: inner,
+            inner,
             complexes: Vec::new(),
         }
     }
@@ -44,7 +44,7 @@ where
             marker::BOOLEAN => self.decode_boolean(),
             marker::STRING => self.decode_string(),
             marker::OBJECT => self.decode_object(),
-            marker::MOVIECLIP => Err(DecodeError::Unsupported { marker: marker }),
+            marker::MOVIECLIP => Err(DecodeError::Unsupported { marker }),
             marker::NULL => Ok(Value::Null),
             marker::UNDEFINED => Ok(Value::Undefined),
             marker::REFERENCE => self.decode_reference(),
@@ -53,12 +53,12 @@ where
             marker::STRICT_ARRAY => self.decode_strict_array(),
             marker::DATE => self.decode_date(),
             marker::LONG_STRING => self.decode_long_string(),
-            marker::UNSUPPORTED => Err(DecodeError::Unsupported { marker: marker }),
-            marker::RECORDSET => Err(DecodeError::Unsupported { marker: marker }),
+            marker::UNSUPPORTED => Err(DecodeError::Unsupported { marker }),
+            marker::RECORDSET => Err(DecodeError::Unsupported { marker }),
             marker::XML_DOCUMENT => self.decode_xml_document(),
             marker::TYPED_OBJECT => self.decode_typed_object(),
             marker::AVMPLUS_OBJECT => self.decode_avmplus(),
-            _ => Err(DecodeError::Unknown { marker: marker }),
+            _ => Err(DecodeError::Unknown { marker }),
         }
     }
     fn decode_number(&mut self) -> DecodeResult<Value> {
@@ -78,7 +78,7 @@ where
             let entries = this.decode_pairs()?;
             Ok(Value::Object {
                 class_name: None,
-                entries: entries,
+                entries,
             })
         })
     }
@@ -86,10 +86,10 @@ where
         let index = self.inner.read_u16::<BigEndian>()? as usize;
         self.complexes
             .get(index)
-            .ok_or(DecodeError::OutOfRangeReference { index: index })
+            .ok_or(DecodeError::OutOfRangeReference { index })
             .and_then(|v| {
                 if *v == Value::Null {
-                    Err(DecodeError::CircularReference { index: index })
+                    Err(DecodeError::CircularReference { index })
                 } else {
                     Ok(v.clone())
                 }
@@ -99,7 +99,7 @@ where
         self.decode_complex_type(|this| {
             let _count = this.inner.read_u32::<BigEndian>()? as usize;
             let entries = this.decode_pairs()?;
-            Ok(Value::EcmaArray { entries: entries })
+            Ok(Value::EcmaArray { entries })
         })
     }
     fn decode_strict_array(&mut self) -> DecodeResult<Value> {
@@ -108,7 +108,7 @@ where
             let entries = (0..count)
                 .map(|_| this.decode_value())
                 .collect::<DecodeResult<_>>()?;
-            Ok(Value::Array { entries: entries })
+            Ok(Value::Array { entries })
         })
     }
     fn decode_date(&mut self) -> DecodeResult<Value> {
@@ -117,7 +117,7 @@ where
         if time_zone != 0 {
             Err(DecodeError::NonZeroTimeZone { offset: time_zone })
         } else if !(millis.is_finite() && millis.is_sign_positive()) {
-            Err(DecodeError::InvalidDate { millis: millis })
+            Err(DecodeError::InvalidDate { millis })
         } else {
             Ok(Value::Date {
                 unix_time: time::Duration::from_millis(millis as u64),
@@ -139,7 +139,7 @@ where
             let entries = this.decode_pairs()?;
             Ok(Value::Object {
                 class_name: Some(class_name),
-                entries: entries,
+                entries,
             })
         })
     }
@@ -161,10 +161,7 @@ where
             let key = self.read_utf8(len)?;
             match self.decode_value() {
                 Ok(value) => {
-                    entries.push(Pair {
-                        key: key,
-                        value: value,
-                    });
+                    entries.push(Pair { key, value });
                 }
                 Err(DecodeError::UnexpectedObjectEnd) if key.is_empty() => break,
                 Err(e) => return Err(e),
