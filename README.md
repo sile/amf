@@ -2,6 +2,7 @@ amf
 ===
 
 [![Crates.io: amf](http://meritbadge.herokuapp.com/amf)](https://crates.io/crates/amf)
+[![Documentation](https://docs.rs/amf/badge.svg)](https://docs.rs/amf)
 [![Build Status](https://travis-ci.org/sile/amf.svg?branch=master)](https://travis-ci.org/sile/amf)
 [![Code Coverage](https://codecov.io/gh/sile/amf/branch/master/graph/badge.svg)](https://codecov.io/gh/sile/amf/branch/master)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
@@ -13,16 +14,6 @@ Documentation
 -------------
 
 See [RustDoc Documentation](https://docs.rs/amf/).
-
-Installation
-------------
-
-Add following lines to your `Cargo.toml`:
-
-```toml
-[dependencies]
-amf = "0.1"
-```
 
 Example
 -------
