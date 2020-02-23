@@ -11,5 +11,9 @@ keywords = ["AMF"]
 license = "MIT"
 edition = "2018"
 
+[badges]
+travis-ci = {repository = "sile/amf"}
+acodecov = {repository = "sile/amf"}
+
 [dependencies]
 byteorder = "1"
