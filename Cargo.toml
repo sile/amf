@@ -9,6 +9,7 @@ repository = "https://github.com/sile/amf"
 readme = "README.md"
 keywords = ["AMF"]
 license = "MIT"
+edition = "2018"
 
 [dependencies]
 byteorder = "1"

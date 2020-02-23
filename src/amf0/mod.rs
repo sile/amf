@@ -13,12 +13,10 @@
 //! let decoded = Value::read_from(&mut &buf[..]).unwrap();
 //! assert_eq!(number, decoded);
 //! ```
+use crate::amf3;
+use crate::{DecodeResult, Pair};
 use std::io;
 use std::time;
-
-use amf3;
-use DecodeResult;
-use Pair;
 
 pub use self::decode::Decoder;
 pub use self::encode::Encoder;

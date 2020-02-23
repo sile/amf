@@ -80,8 +80,8 @@ impl error::Error for DecodeError {
     fn cause(&self) -> Option<&dyn error::Error> {
         use self::DecodeError::*;
         match *self {
-            Io(ref x) => x.cause(),
-            String(ref x) => x.cause(),
+            Io(ref x) => x.source(),
+            String(ref x) => x.source(),
             _ => None,
         }
     }
