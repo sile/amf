@@ -40,7 +40,7 @@ impl<R> Decoder<R>
     }
 
     fn decode_value(&mut self) -> DecodeResult<Value> {
-        let marker = try!(self.inner.read_u8());
+        let marker = self.inner.read_u8()?;
         match marker {
             marker::NUMBER => self.decode_number(),
             marker::BOOLEAN => self.decode_boolean(),
@@ -64,20 +64,20 @@ impl<R> Decoder<R>
         }
     }
     fn decode_number(&mut self) -> DecodeResult<Value> {
-        let n = try!(self.inner.read_f64::<BigEndian>());
+        let n = self.inner.read_f64::<BigEndian>()?;
         Ok(Value::Number(n))
     }
     fn decode_boolean(&mut self) -> DecodeResult<Value> {
-        let b = try!(self.inner.read_u8()) != 0;
+        let b = self.inner.read_u8()? != 0;
         Ok(Value::Boolean(b))
     }
     fn decode_string(&mut self) -> DecodeResult<Value> {
-        let len = try!(self.inner.read_u16::<BigEndian>()) as usize;
+        let len = self.inner.read_u16::<BigEndian>()? as usize;
         self.read_utf8(len).map(Value::String)
     }
     fn decode_object(&mut self) -> DecodeResult<Value> {
         self.decode_complex_type(|this| {
-            let entries = try!(this.decode_pairs());
+            let entries = this.decode_pairs()?;
             Ok(Value::Object {
                 class_name: None,
                 entries: entries,
@@ -85,7 +85,7 @@ impl<R> Decoder<R>
         })
     }
     fn decode_reference(&mut self) -> DecodeResult<Value> {
-        let index = try!(self.inner.read_u16::<BigEndian>()) as usize;
+        let index = self.inner.read_u16::<BigEndian>()? as usize;
         self.complexes
             .get(index)
             .ok_or(DecodeError::OutOfRangeReference { index: index })
@@ -97,21 +97,21 @@ impl<R> Decoder<R>
     }
     fn decode_ecma_array(&mut self) -> DecodeResult<Value> {
         self.decode_complex_type(|this| {
-            let _count = try!(this.inner.read_u32::<BigEndian>()) as usize;
-            let entries = try!(this.decode_pairs());
+            let _count = this.inner.read_u32::<BigEndian>()? as usize;
+            let entries = this.decode_pairs()?;
             Ok(Value::EcmaArray { entries: entries })
         })
     }
     fn decode_strict_array(&mut self) -> DecodeResult<Value> {
         self.decode_complex_type(|this| {
-            let count = try!(this.inner.read_u32::<BigEndian>()) as usize;
-            let entries = try!((0..count).map(|_| this.decode_value()).collect());
+            let count = this.inner.read_u32::<BigEndian>()? as usize;
+            let entries = (0..count).map(|_| this.decode_value()).collect::<Result<_, _>>()?;
             Ok(Value::Array { entries: entries })
         })
     }
     fn decode_date(&mut self) -> DecodeResult<Value> {
-        let millis = try!(self.inner.read_f64::<BigEndian>());
-        let time_zone = try!(self.inner.read_i16::<BigEndian>());
+        let millis = self.inner.read_f64::<BigEndian>()?;
+        let time_zone = self.inner.read_i16::<BigEndian>()?;
         if time_zone != 0 {
             Err(DecodeError::NonZeroTimeZone { offset: time_zone })
         } else if !(millis.is_finite() && millis.is_sign_positive()) {
@@ -121,18 +121,18 @@ impl<R> Decoder<R>
         }
     }
     fn decode_long_string(&mut self) -> DecodeResult<Value> {
-        let len = try!(self.inner.read_u32::<BigEndian>()) as usize;
+        let len = self.inner.read_u32::<BigEndian>()? as usize;
         self.read_utf8(len).map(Value::String)
     }
     fn decode_xml_document(&mut self) -> DecodeResult<Value> {
-        let len = try!(self.inner.read_u32::<BigEndian>()) as usize;
+        let len = self.inner.read_u32::<BigEndian>()? as usize;
         self.read_utf8(len).map(Value::XmlDocument)
     }
     fn decode_typed_object(&mut self) -> DecodeResult<Value> {
         self.decode_complex_type(|this| {
-            let len = try!(this.inner.read_u16::<BigEndian>()) as usize;
-            let class_name = try!(this.read_utf8(len));
-            let entries = try!(this.decode_pairs());
+            let len = this.inner.read_u16::<BigEndian>()? as usize;
+            let class_name = this.read_utf8(len)?;
+            let entries = this.decode_pairs()?;
             Ok(Value::Object {
                 class_name: Some(class_name),
                 entries: entries,
@@ -140,21 +140,21 @@ impl<R> Decoder<R>
         })
     }
     fn decode_avmplus(&mut self) -> DecodeResult<Value> {
-        let value = try!(amf3::Decoder::new(&mut self.inner).decode());
+        let value = amf3::Decoder::new(&mut self.inner).decode()?;
         Ok(Value::AvmPlus(value))
     }
 
     fn read_utf8(&mut self, len: usize) -> DecodeResult<String> {
         let mut buf = vec![0; len];
-        try!(self.inner.read_exact(&mut buf));
-        let utf8 = try!(String::from_utf8(buf));
+        self.inner.read_exact(&mut buf)?;
+        let utf8 = String::from_utf8(buf)?;
         Ok(utf8)
     }
     fn decode_pairs(&mut self) -> DecodeResult<Vec<Pair<String, Value>>> {
         let mut entries = Vec::new();
         loop {
-            let len = try!(self.inner.read_u16::<BigEndian>()) as usize;
-            let key = try!(self.read_utf8(len));
+            let len = self.inner.read_u16::<BigEndian>()? as usize;
+            let key = self.read_utf8(len)?;
             match self.decode_value() {
                 Ok(value) => {
                     entries.push(Pair {
@@ -173,7 +173,7 @@ impl<R> Decoder<R>
     {
         let index = self.complexes.len();
         self.complexes.push(Value::Null);
-        let value = try!(f(self));
+        let value = f(self)?;
         self.complexes[index] = value.clone();
         Ok(value)
     }

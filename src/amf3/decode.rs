@@ -63,7 +63,7 @@ impl<R> Decoder<R>
     }
 
     fn decode_value(&mut self) -> DecodeResult<Value> {
-        let marker = try!(self.inner.read_u8());
+        let marker = self.inner.read_u8()?;
         match marker {
             marker::UNDEFINED => Ok(Value::Undefined),
             marker::NULL => Ok(Value::Null),
@@ -88,16 +88,16 @@ impl<R> Decoder<R>
     }
 
     fn decode_integer(&mut self) -> DecodeResult<Value> {
-        let n = try!(self.decode_u29()) as i32;
+        let n = self.decode_u29()? as i32;
         let n = if n >= (1 << 28) { n - (1 << 29) } else { n };
         Ok(Value::Integer(n))
     }
     fn decode_double(&mut self) -> DecodeResult<Value> {
-        let n = try!(self.inner.read_f64::<BigEndian>());
+        let n = self.inner.read_f64::<BigEndian>()?;
         Ok(Value::Double(n))
     }
     fn decode_string(&mut self) -> DecodeResult<Value> {
-        let s = try!(self.decode_utf8());
+        let s = self.decode_utf8()?;
         Ok(Value::String(s))
     }
     fn decode_xml_doc(&mut self) -> DecodeResult<Value> {
@@ -105,7 +105,7 @@ impl<R> Decoder<R>
     }
     fn decode_date(&mut self) -> DecodeResult<Value> {
         self.decode_complex_type(|this, _| {
-            let millis = try!(this.inner.read_f64::<BigEndian>());
+            let millis = this.inner.read_f64::<BigEndian>()?;
             if !(millis.is_finite() && millis.is_sign_positive()) {
                 Err(DecodeError::InvalidDate { millis: millis })
             } else {
@@ -115,8 +115,8 @@ impl<R> Decoder<R>
     }
     fn decode_array(&mut self) -> DecodeResult<Value> {
         self.decode_complex_type(|this, count| {
-            let assoc = try!(this.decode_pairs());
-            let dense = try!((0..count).map(|_| this.decode_value()).collect());
+            let assoc = this.decode_pairs()?;
+            let dense = (0..count).map(|_| this.decode_value()).collect::<Result<_, _>>()?;
             Ok(Value::Array {
                 assoc_entries: assoc,
                 dense_entries: dense,
@@ -125,18 +125,18 @@ impl<R> Decoder<R>
     }
     fn decode_object(&mut self) -> DecodeResult<Value> {
         self.decode_complex_type(|this, u28| {
-            let amf_trait = try!(this.decode_trait(u28));
-            let mut entries = try!(amf_trait.fields
+            let amf_trait = this.decode_trait(u28)?;
+            let mut entries = amf_trait.fields
                 .iter()
                 .map(|k| {
                     Ok(Pair {
                         key: k.clone(),
-                        value: try!(this.decode_value()),
+                        value: this.decode_value()?,
                     })
                 })
-                .collect::<DecodeResult<Vec<_>>>());
+                .collect::<DecodeResult<Vec<_>>>()?;
             if amf_trait.is_dynamic {
-                entries.extend(try!(this.decode_pairs()));
+                entries.extend(this.decode_pairs()?);
             }
             Ok(Value::Object {
                 class_name: amf_trait.class_name,
@@ -153,8 +153,8 @@ impl<R> Decoder<R>
     }
     fn decode_vector_int(&mut self) -> DecodeResult<Value> {
         self.decode_complex_type(|this, count| {
-            let is_fixed = try!(this.inner.read_u8()) != 0;
-            let entries = try!((0..count).map(|_| this.inner.read_i32::<BigEndian>()).collect());
+            let is_fixed = this.inner.read_u8()? != 0;
+            let entries = (0..count).map(|_| this.inner.read_i32::<BigEndian>()).collect::<Result<_, _>>()?;
             Ok(Value::IntVector {
                 is_fixed: is_fixed,
                 entries: entries,
@@ -163,8 +163,8 @@ impl<R> Decoder<R>
     }
     fn decode_vector_uint(&mut self) -> DecodeResult<Value> {
         self.decode_complex_type(|this, count| {
-            let is_fixed = try!(this.inner.read_u8()) != 0;
-            let entries = try!((0..count).map(|_| this.inner.read_u32::<BigEndian>()).collect());
+            let is_fixed = this.inner.read_u8()? != 0;
+            let entries = (0..count).map(|_| this.inner.read_u32::<BigEndian>()).collect::<Result<_, _>>()?;
             Ok(Value::UintVector {
                 is_fixed: is_fixed,
                 entries: entries,
@@ -173,8 +173,8 @@ impl<R> Decoder<R>
     }
     fn decode_vector_double(&mut self) -> DecodeResult<Value> {
         self.decode_complex_type(|this, count| {
-            let is_fixed = try!(this.inner.read_u8()) != 0;
-            let entries = try!((0..count).map(|_| this.inner.read_f64::<BigEndian>()).collect());
+            let is_fixed = this.inner.read_u8()? != 0;
+            let entries = (0..count).map(|_| this.inner.read_f64::<BigEndian>()).collect::<Result<_, _>>()?;
             Ok(Value::DoubleVector {
                 is_fixed: is_fixed,
                 entries: entries,
@@ -183,9 +183,9 @@ impl<R> Decoder<R>
     }
     fn decode_vector_object(&mut self) -> DecodeResult<Value> {
         self.decode_complex_type(|this, count| {
-            let is_fixed = try!(this.inner.read_u8()) != 0;
-            let class_name = try!(this.decode_utf8());
-            let entries = try!((0..count).map(|_| this.decode_value()).collect());
+            let is_fixed = this.inner.read_u8()? != 0;
+            let class_name = this.decode_utf8()?;
+            let entries = (0..count).map(|_| this.decode_value()).collect::<Result<_, _>>()?;
             Ok(Value::ObjectVector {
                 class_name: if class_name == "*" {
                     None
@@ -199,15 +199,15 @@ impl<R> Decoder<R>
     }
     fn decode_dictionary(&mut self) -> DecodeResult<Value> {
         self.decode_complex_type(|this, count| {
-            let is_weak = try!(this.inner.read_u8()) == 1;
-            let entries = try!((0..count)
+            let is_weak = this.inner.read_u8()? == 1;
+            let entries = (0..count)
                 .map(|_| {
                     Ok(Pair {
-                        key: try!(this.decode_value()),
-                        value: try!(this.decode_value()),
+                        key: this.decode_value()?,
+                        value: this.decode_value()?,
                     })
                 })
-                .collect::<DecodeResult<_>>());
+                .collect::<DecodeResult<_>>()?;
             Ok(Value::Dictionary {
                 is_weak: is_weak,
                 entries: entries,
@@ -220,19 +220,19 @@ impl<R> Decoder<R>
     /// Use this if you need to decode an AMF3 string outside of value context.
     /// An example for this is reading keys in Local Shared Object file.
     pub fn decode_utf8(&mut self) -> DecodeResult<String> {
-        match try!(self.decode_size_or_index()) {
+        match self.decode_size_or_index()? {
             SizeOrIndex::Size(len) => {
-                let bytes = try!(self.read_bytes(len));
-                let s = try!(String::from_utf8(bytes));
+                let bytes = self.read_bytes(len)?;
+                let s = String::from_utf8(bytes)?;
                 if !s.is_empty() {
                     self.strings.push(s.clone());
                 }
                 Ok(s)
             }
             SizeOrIndex::Index(index) => {
-                let s = try!(self.strings
+                let s = self.strings
                     .get(index)
-                    .ok_or(DecodeError::OutOfRangeReference { index: index }));
+                    .ok_or(DecodeError::OutOfRangeReference { index: index })?;
                 Ok(s.clone())
             }
         }
@@ -240,18 +240,18 @@ impl<R> Decoder<R>
     fn decode_u29(&mut self) -> DecodeResult<u32> {
         let mut n = 0;
         for _ in 0..3 {
-            let b = try!(self.inner.read_u8()) as u32;
+            let b = self.inner.read_u8()? as u32;
             n = (n << 7) | (b & 0b0111_1111);
             if (b & 0b1000_0000) == 0 {
                 return Ok(n);
             }
         }
-        let b = try!(self.inner.read_u8()) as u32;
+        let b = self.inner.read_u8()? as u32;
         n = (n << 8) | b;
         Ok(n)
     }
     fn decode_size_or_index(&mut self) -> DecodeResult<SizeOrIndex> {
-        let u29 = try!(self.decode_u29()) as usize;
+        let u29 = self.decode_u29()? as usize;
         let is_reference = (u29 & 0b01) == 0;
         let value = u29 >> 1;
         if is_reference {
@@ -263,7 +263,7 @@ impl<R> Decoder<R>
     fn decode_complex_type<F>(&mut self, f: F) -> DecodeResult<Value>
         where F: FnOnce(&mut Self, usize) -> DecodeResult<Value>
     {
-        match try!(self.decode_size_or_index()) {
+        match self.decode_size_or_index()? {
             SizeOrIndex::Index(index) => {
                 self.complexes
                     .get(index)
@@ -277,7 +277,7 @@ impl<R> Decoder<R>
             SizeOrIndex::Size(u28) => {
                 let index = self.complexes.len();
                 self.complexes.push(Value::Null);
-                let value = try!(f(self, u28));
+                let value = f(self, u28)?;
                 self.complexes[index] = value.clone();
                 Ok(value)
             }
@@ -286,11 +286,11 @@ impl<R> Decoder<R>
     fn decode_pairs(&mut self) -> DecodeResult<Vec<Pair<String, Value>>> {
         let mut pairs = Vec::new();
         loop {
-            let key = try!(self.decode_utf8());
+            let key = self.decode_utf8()?;
             if key.is_empty() {
                 return Ok(pairs);
             }
-            let value = try!(self.decode_value());
+            let value = self.decode_value()?;
             pairs.push(Pair {
                 key: key,
                 value: value,
@@ -300,16 +300,16 @@ impl<R> Decoder<R>
     fn decode_trait(&mut self, u28: usize) -> DecodeResult<Trait> {
         if (u28 & 0b1) == 0 {
             let i = (u28 >> 1) as usize;
-            let t = try!(self.traits.get(i).ok_or(DecodeError::OutOfRangeReference { index: i }));
+            let t = self.traits.get(i).ok_or(DecodeError::OutOfRangeReference { index: i })?;
             Ok(t.clone())
         } else if (u28 & 0b10) != 0 {
-            let class_name = try!(self.decode_utf8());
+            let class_name = self.decode_utf8()?;
             Err(DecodeError::ExternalizableType { name: class_name })
         } else {
             let is_dynamic = (u28 & 0b100) != 0;
             let field_num = u28 >> 3;
-            let class_name = try!(self.decode_utf8());
-            let fields = try!((0..field_num).map(|_| self.decode_utf8()).collect());
+            let class_name = self.decode_utf8()?;
+            let fields = (0..field_num).map(|_| self.decode_utf8()).collect::<Result<_, _>>()?;
 
             let t = Trait {
                 class_name: if class_name.is_empty() {
@@ -326,11 +326,11 @@ impl<R> Decoder<R>
     }
     fn read_bytes(&mut self, len: usize) -> DecodeResult<Vec<u8>> {
         let mut buf = vec![0; len];
-        try!(self.inner.read_exact(&mut buf));
+        self.inner.read_exact(&mut buf)?;
         Ok(buf)
     }
     fn read_utf8(&mut self, len: usize) -> DecodeResult<String> {
-        self.read_bytes(len).and_then(|b| Ok(try!(String::from_utf8(b))))
+        self.read_bytes(len).and_then(|b| Ok(String::from_utf8(b)?))
     }
 }
 

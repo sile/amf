@@ -60,58 +60,58 @@ impl<W> Encoder<W>
     }
 
     fn encode_undefined(&mut self) -> io::Result<()> {
-        try!(self.inner.write_u8(marker::UNDEFINED));
+        self.inner.write_u8(marker::UNDEFINED)?;
         Ok(())
     }
     fn encode_null(&mut self) -> io::Result<()> {
-        try!(self.inner.write_u8(marker::NULL));
+        self.inner.write_u8(marker::NULL)?;
         Ok(())
     }
     fn encode_boolean(&mut self, b: bool) -> io::Result<()> {
         if b {
-            try!(self.inner.write_u8(marker::TRUE));
+            self.inner.write_u8(marker::TRUE)?;
         } else {
-            try!(self.inner.write_u8(marker::FALSE));
+            self.inner.write_u8(marker::FALSE)?;
         }
         Ok(())
     }
     fn encode_integer(&mut self, i: i32) -> io::Result<()> {
-        try!(self.inner.write_u8(marker::INTEGER));
+        self.inner.write_u8(marker::INTEGER)?;
         let u29 = if i >= 0 {
             i as u32
         } else {
             ((1 << 29) + i) as u32
         };
-        try!(self.encode_u29(u29));
+        self.encode_u29(u29)?;
         Ok(())
     }
     fn encode_double(&mut self, d: f64) -> io::Result<()> {
-        try!(self.inner.write_u8(marker::DOUBLE));
-        try!(self.inner.write_f64::<BigEndian>(d));
+        self.inner.write_u8(marker::DOUBLE)?;
+        self.inner.write_f64::<BigEndian>(d)?;
         Ok(())
     }
     fn encode_string(&mut self, s: &str) -> io::Result<()> {
-        try!(self.inner.write_u8(marker::STRING));
-        try!(self.encode_utf8(s));
+        self.inner.write_u8(marker::STRING)?;
+        self.encode_utf8(s)?;
         Ok(())
     }
     fn encode_xml_document(&mut self, xml: &str) -> io::Result<()> {
-        try!(self.inner.write_u8(marker::XML_DOC));
-        try!(self.encode_utf8(xml));
+        self.inner.write_u8(marker::XML_DOC)?;
+        self.encode_utf8(xml)?;
         Ok(())
     }
     fn encode_date(&mut self, unix_time: time::Duration) -> io::Result<()> {
         let millis = unix_time.as_secs() * 1000 + (unix_time.subsec_nanos() as u64) / 1000_000;
-        try!(self.inner.write_u8(marker::DATE));
-        try!(self.encode_size(0));
-        try!(self.inner.write_f64::<BigEndian>(millis as f64));
+        self.inner.write_u8(marker::DATE)?;
+        self.encode_size(0)?;
+        self.inner.write_f64::<BigEndian>(millis as f64)?;
         Ok(())
     }
     fn encode_array(&mut self, assoc: &[Pair<String, Value>], dense: &[Value]) -> io::Result<()> {
-        try!(self.inner.write_u8(marker::ARRAY));
-        try!(self.encode_size(dense.len()));
-        try!(self.encode_pairs(assoc));
-        try!(dense.iter().map(|v| self.encode(v)).collect::<io::Result<Vec<_>>>());
+        self.inner.write_u8(marker::ARRAY)?;
+        self.encode_size(dense.len())?;
+        self.encode_pairs(assoc)?;
+        dense.iter().map(|v| self.encode(v)).collect::<io::Result<Vec<_>>>()?;
         Ok(())
     }
     fn encode_object(&mut self,
@@ -119,51 +119,51 @@ impl<W> Encoder<W>
                      sealed_count: usize,
                      entries: &[Pair<String, Value>])
                      -> io::Result<()> {
-        try!(self.inner.write_u8(marker::OBJECT));
-        try!(self.encode_trait(class_name, sealed_count, entries));
+        self.inner.write_u8(marker::OBJECT)?;
+        self.encode_trait(class_name, sealed_count, entries)?;
         for e in entries.iter().take(sealed_count) {
-            try!(self.encode(&e.value));
+            self.encode(&e.value)?;
         }
         if entries.len() > sealed_count {
-            try!(self.encode_pairs(&entries[sealed_count..]));
+            self.encode_pairs(&entries[sealed_count..])?;
         }
         Ok(())
     }
     fn encode_xml(&mut self, xml: &str) -> io::Result<()> {
-        try!(self.inner.write_u8(marker::XML));
-        try!(self.encode_utf8(xml));
+        self.inner.write_u8(marker::XML)?;
+        self.encode_utf8(xml)?;
         Ok(())
     }
     fn encode_byte_array(&mut self, bytes: &[u8]) -> io::Result<()> {
-        try!(self.inner.write_u8(marker::BYTE_ARRAY));
-        try!(self.encode_size(bytes.len()));
-        try!(self.inner.write_all(bytes));
+        self.inner.write_u8(marker::BYTE_ARRAY)?;
+        self.encode_size(bytes.len())?;
+        self.inner.write_all(bytes)?;
         Ok(())
     }
     fn encode_int_vector(&mut self, is_fixed: bool, vec: &[i32]) -> io::Result<()> {
-        try!(self.inner.write_u8(marker::VECTOR_INT));
-        try!(self.encode_size(vec.len()));
-        try!(self.inner.write_u8(is_fixed as u8));
+        self.inner.write_u8(marker::VECTOR_INT)?;
+        self.encode_size(vec.len())?;
+        self.inner.write_u8(is_fixed as u8)?;
         for &x in vec {
-            try!(self.inner.write_i32::<BigEndian>(x));
+            self.inner.write_i32::<BigEndian>(x)?;
         }
         Ok(())
     }
     fn encode_uint_vector(&mut self, is_fixed: bool, vec: &[u32]) -> io::Result<()> {
-        try!(self.inner.write_u8(marker::VECTOR_UINT));
-        try!(self.encode_size(vec.len()));
-        try!(self.inner.write_u8(is_fixed as u8));
+        self.inner.write_u8(marker::VECTOR_UINT)?;
+        self.encode_size(vec.len())?;
+        self.inner.write_u8(is_fixed as u8)?;
         for &x in vec {
-            try!(self.inner.write_u32::<BigEndian>(x));
+            self.inner.write_u32::<BigEndian>(x)?;
         }
         Ok(())
     }
     fn encode_double_vector(&mut self, is_fixed: bool, vec: &[f64]) -> io::Result<()> {
-        try!(self.inner.write_u8(marker::VECTOR_DOUBLE));
-        try!(self.encode_size(vec.len()));
-        try!(self.inner.write_u8(is_fixed as u8));
+        self.inner.write_u8(marker::VECTOR_DOUBLE)?;
+        self.encode_size(vec.len())?;
+        self.inner.write_u8(is_fixed as u8)?;
         for &x in vec {
-            try!(self.inner.write_f64::<BigEndian>(x));
+            self.inner.write_f64::<BigEndian>(x)?;
         }
         Ok(())
     }
@@ -172,12 +172,12 @@ impl<W> Encoder<W>
                             is_fixed: bool,
                             vec: &[Value])
                             -> io::Result<()> {
-        try!(self.inner.write_u8(marker::VECTOR_OBJECT));
-        try!(self.encode_size(vec.len()));
-        try!(self.inner.write_u8(is_fixed as u8));
-        try!(self.encode_utf8(class_name.as_ref().map_or("*", |s| &s)));
+        self.inner.write_u8(marker::VECTOR_OBJECT)?;
+        self.encode_size(vec.len())?;
+        self.inner.write_u8(is_fixed as u8)?;
+        self.encode_utf8(class_name.as_ref().map_or("*", |s| &s))?;
         for x in vec {
-            try!(self.encode(x));
+            self.encode(x)?;
         }
         Ok(())
     }
@@ -185,12 +185,12 @@ impl<W> Encoder<W>
                          is_weak: bool,
                          entries: &[Pair<Value, Value>])
                          -> io::Result<()> {
-        try!(self.inner.write_u8(marker::DICTIONARY));
-        try!(self.encode_size(entries.len()));
-        try!(self.inner.write_u8(is_weak as u8));
+        self.inner.write_u8(marker::DICTIONARY)?;
+        self.encode_size(entries.len())?;
+        self.inner.write_u8(is_weak as u8)?;
         for e in entries {
-            try!(self.encode(&e.key));
-            try!(self.encode(&e.value));
+            self.encode(&e.key)?;
+            self.encode(&e.value)?;
         }
         Ok(())
     }
@@ -205,12 +205,12 @@ impl<W> Encoder<W>
         let is_dynamic = (sealed_count < entries.len()) as usize;
         let u28 = (sealed_count << 3) | (is_dynamic << 2) | (is_externalizable << 1) |
                   not_reference;
-        try!(self.encode_size(u28));
+        self.encode_size(u28)?;
 
         let class_name = class_name.as_ref().map_or("", |s| &s);
-        try!(self.encode_utf8(class_name));
+        self.encode_utf8(class_name)?;
         for e in entries.iter().take(sealed_count) {
-            try!(self.encode_utf8(&e.key));
+            self.encode_utf8(&e.key)?;
         }
         Ok(())
     }
@@ -221,19 +221,19 @@ impl<W> Encoder<W>
     }
     fn encode_u29(&mut self, u29: u32) -> io::Result<()> {
         if u29 < 0x80 {
-            try!(self.inner.write_u8(u29 as u8));
+            self.inner.write_u8(u29 as u8)?;
         } else if u29 < 0x4000 {
             let b1 = ((u29 >> 0) & 0b0111_1111) as u8;
             let b2 = ((u29 >> 7) | 0b1000_0000) as u8;
             for b in &[b2, b1] {
-                try!(self.inner.write_u8(*b));
+                self.inner.write_u8(*b)?;
             }
         } else if u29 < 0x20_0000 {
             let b1 = ((u29 >> 00) & 0b0111_1111) as u8;
             let b2 = ((u29 >> 07) | 0b1000_0000) as u8;
             let b3 = ((u29 >> 14) | 0b1000_0000) as u8;
             for b in &[b3, b2, b1] {
-                try!(self.inner.write_u8(*b));
+                self.inner.write_u8(*b)?;
             }
         } else if u29 < 0x4000_0000 {
             let b1 = ((u29 >> 00) & 0b1111_1111) as u8;
@@ -241,7 +241,7 @@ impl<W> Encoder<W>
             let b3 = ((u29 >> 15) | 0b1000_0000) as u8;
             let b4 = ((u29 >> 22) | 0b1000_0000) as u8;
             for b in &[b4, b3, b2, b1] {
-                try!(self.inner.write_u8(*b));
+                self.inner.write_u8(*b)?;
             }
         } else {
             panic!("Too large number: {}", u29);
@@ -250,16 +250,16 @@ impl<W> Encoder<W>
 
     }
     fn encode_utf8(&mut self, s: &str) -> io::Result<()> {
-        try!(self.encode_size(s.len()));
-        try!(self.inner.write_all(s.as_bytes()));
+        self.encode_size(s.len())?;
+        self.inner.write_all(s.as_bytes())?;
         Ok(())
     }
     fn encode_pairs(&mut self, pairs: &[Pair<String, Value>]) -> io::Result<()> {
         for p in pairs {
-            try!(self.encode_utf8(&p.key));
-            try!(self.encode(&p.value));
+            self.encode_utf8(&p.key)?;
+            self.encode(&p.value)?;
         }
-        try!(self.encode_utf8(""));
+        self.encode_utf8("")?;
         Ok(())
     }
 }
