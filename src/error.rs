@@ -1,7 +1,7 @@
 //! AMF error.
-use std::io;
-use std::fmt;
 use std::error;
+use std::fmt;
+use std::io;
 use std::string;
 
 /// AMF Decoding Error.

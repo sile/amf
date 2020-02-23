@@ -1,11 +1,11 @@
-use std::io;
-use std::time;
 use byteorder::BigEndian;
 use byteorder::WriteBytesExt;
+use std::io;
+use std::time;
 
-use Pair;
-use super::Value;
 use super::marker;
+use super::Value;
+use Pair;
 
 /// AMF3 encoder.
 #[derive(Debug)]
@@ -19,7 +19,8 @@ impl<W> Encoder<W> {
     }
 }
 impl<W> Encoder<W>
-    where W: io::Write
+where
+    W: io::Write,
 {
     /// Makes a new instance.
     pub fn new(inner: W) -> Self {
@@ -37,25 +38,38 @@ impl<W> Encoder<W>
             Value::String(ref x) => self.encode_string(x),
             Value::XmlDocument(ref x) => self.encode_xml_document(x),
             Value::Date { unix_time } => self.encode_date(unix_time),
-            Value::Array { ref assoc_entries, ref dense_entries } => {
-                self.encode_array(assoc_entries, dense_entries)
-            }
-            Value::Object { ref class_name, sealed_count, ref entries } => {
-                self.encode_object(class_name, sealed_count, entries)
-            }
+            Value::Array {
+                ref assoc_entries,
+                ref dense_entries,
+            } => self.encode_array(assoc_entries, dense_entries),
+            Value::Object {
+                ref class_name,
+                sealed_count,
+                ref entries,
+            } => self.encode_object(class_name, sealed_count, entries),
             Value::Xml(ref x) => self.encode_xml(x),
             Value::ByteArray(ref x) => self.encode_byte_array(x),
-            Value::IntVector { is_fixed, ref entries } => self.encode_int_vector(is_fixed, entries),
-            Value::UintVector { is_fixed, ref entries } => {
-                self.encode_uint_vector(is_fixed, entries)
-            }
-            Value::DoubleVector { is_fixed, ref entries } => {
-                self.encode_double_vector(is_fixed, entries)
-            }
-            Value::ObjectVector { ref class_name, is_fixed, ref entries } => {
-                self.encode_object_vector(class_name, is_fixed, entries)
-            }
-            Value::Dictionary { is_weak, ref entries } => self.encode_dictionary(is_weak, entries),
+            Value::IntVector {
+                is_fixed,
+                ref entries,
+            } => self.encode_int_vector(is_fixed, entries),
+            Value::UintVector {
+                is_fixed,
+                ref entries,
+            } => self.encode_uint_vector(is_fixed, entries),
+            Value::DoubleVector {
+                is_fixed,
+                ref entries,
+            } => self.encode_double_vector(is_fixed, entries),
+            Value::ObjectVector {
+                ref class_name,
+                is_fixed,
+                ref entries,
+            } => self.encode_object_vector(class_name, is_fixed, entries),
+            Value::Dictionary {
+                is_weak,
+                ref entries,
+            } => self.encode_dictionary(is_weak, entries),
         }
     }
 
@@ -111,14 +125,18 @@ impl<W> Encoder<W>
         try!(self.inner.write_u8(marker::ARRAY));
         try!(self.encode_size(dense.len()));
         try!(self.encode_pairs(assoc));
-        try!(dense.iter().map(|v| self.encode(v)).collect::<io::Result<Vec<_>>>());
+        try!(dense
+            .iter()
+            .map(|v| self.encode(v))
+            .collect::<io::Result<Vec<_>>>());
         Ok(())
     }
-    fn encode_object(&mut self,
-                     class_name: &Option<String>,
-                     sealed_count: usize,
-                     entries: &[Pair<String, Value>])
-                     -> io::Result<()> {
+    fn encode_object(
+        &mut self,
+        class_name: &Option<String>,
+        sealed_count: usize,
+        entries: &[Pair<String, Value>],
+    ) -> io::Result<()> {
         try!(self.inner.write_u8(marker::OBJECT));
         try!(self.encode_trait(class_name, sealed_count, entries));
         for e in entries.iter().take(sealed_count) {
@@ -167,11 +185,12 @@ impl<W> Encoder<W>
         }
         Ok(())
     }
-    fn encode_object_vector(&mut self,
-                            class_name: &Option<String>,
-                            is_fixed: bool,
-                            vec: &[Value])
-                            -> io::Result<()> {
+    fn encode_object_vector(
+        &mut self,
+        class_name: &Option<String>,
+        is_fixed: bool,
+        vec: &[Value],
+    ) -> io::Result<()> {
         try!(self.inner.write_u8(marker::VECTOR_OBJECT));
         try!(self.encode_size(vec.len()));
         try!(self.inner.write_u8(is_fixed as u8));
@@ -181,10 +200,11 @@ impl<W> Encoder<W>
         }
         Ok(())
     }
-    fn encode_dictionary(&mut self,
-                         is_weak: bool,
-                         entries: &[Pair<Value, Value>])
-                         -> io::Result<()> {
+    fn encode_dictionary(
+        &mut self,
+        is_weak: bool,
+        entries: &[Pair<Value, Value>],
+    ) -> io::Result<()> {
         try!(self.inner.write_u8(marker::DICTIONARY));
         try!(self.encode_size(entries.len()));
         try!(self.inner.write_u8(is_weak as u8));
@@ -194,17 +214,18 @@ impl<W> Encoder<W>
         }
         Ok(())
     }
-    fn encode_trait(&mut self,
-                    class_name: &Option<String>,
-                    sealed_count: usize,
-                    entries: &[Pair<String, Value>])
-                    -> io::Result<()> {
+    fn encode_trait(
+        &mut self,
+        class_name: &Option<String>,
+        sealed_count: usize,
+        entries: &[Pair<String, Value>],
+    ) -> io::Result<()> {
         assert!(sealed_count <= entries.len());
         let not_reference = 1;
         let is_externalizable = false as usize;
         let is_dynamic = (sealed_count < entries.len()) as usize;
-        let u28 = (sealed_count << 3) | (is_dynamic << 2) | (is_externalizable << 1) |
-                  not_reference;
+        let u28 =
+            (sealed_count << 3) | (is_dynamic << 2) | (is_externalizable << 1) | not_reference;
         try!(self.encode_size(u28));
 
         let class_name = class_name.as_ref().map_or("", |s| &s);
@@ -247,7 +268,6 @@ impl<W> Encoder<W>
             panic!("Too large number: {}", u29);
         }
         Ok(())
-
     }
     fn encode_utf8(&mut self, s: &str) -> io::Result<()> {
         try!(self.encode_size(s.len()));
@@ -266,29 +286,25 @@ impl<W> Encoder<W>
 
 #[cfg(test)]
 mod test {
+    use super::super::Value;
     use std::time;
     use Pair;
-    use super::super::Value;
 
     macro_rules! encode_eq {
-        ($value:expr, $file:expr) => {
-            {
-                let expected = include_bytes!(concat!("../testdata/", $file));
-                let mut buf = Vec::new();
-                $value.write_to(&mut buf).unwrap();
-                assert_eq!(buf, &expected[..]);
-            }
-        }
+        ($value:expr, $file:expr) => {{
+            let expected = include_bytes!(concat!("../testdata/", $file));
+            let mut buf = Vec::new();
+            $value.write_to(&mut buf).unwrap();
+            assert_eq!(buf, &expected[..]);
+        }};
     }
     macro_rules! encode_and_decode {
-        ($value:expr) => {
-            {
-                let v = $value;
-                let mut buf = Vec::new();
-                v.write_to(&mut buf).unwrap();
-                assert_eq!(v, Value::read_from(&mut &buf[..]).unwrap());
-            }
-        }
+        ($value:expr) => {{
+            let v = $value;
+            let mut buf = Vec::new();
+            v.write_to(&mut buf).unwrap();
+            assert_eq!(v, Value::read_from(&mut &buf[..]).unwrap());
+        }};
     }
 
     #[test]
@@ -308,8 +324,10 @@ mod test {
     fn encodes_integer() {
         encode_eq!(Value::Integer(0), "amf3-0.bin");
         encode_eq!(Value::Integer(0b1000_0000), "amf3-integer-2byte.bin");
-        encode_eq!(Value::Integer(0b100_0000_0000_0000),
-                   "amf3-integer-3byte.bin");
+        encode_eq!(
+            Value::Integer(0b100_0000_0000_0000),
+            "amf3-integer-3byte.bin"
+        );
         encode_eq!(Value::Integer(-0x1000_0000), "amf3-min.bin");
         encode_eq!(Value::Integer(0xFFF_FFFF), "amf3-max.bin");
     }
@@ -323,13 +341,17 @@ mod test {
     #[test]
     fn encodes_string() {
         encode_eq!(s("String . String"), "amf3-string.bin");
-        encode_eq!(dense_array(&[i(5), s("Shift テスト"), s("UTF テスト"), i(5)][..]),
-                   "amf3-complex-encoded-string-array.bin");
+        encode_eq!(
+            dense_array(&[i(5), s("Shift テスト"), s("UTF テスト"), i(5)][..]),
+            "amf3-complex-encoded-string-array.bin"
+        );
     }
     #[test]
     fn encodes_array() {
-        encode_eq!(dense_array(&[i(1), i(2), i(3), i(4), i(5)][..]),
-                   "amf3-primitive-array.bin");
+        encode_eq!(
+            dense_array(&[i(1), i(2), i(3), i(4), i(5)][..]),
+            "amf3-primitive-array.bin"
+        );
         encode_and_decode!(Value::Array {
             assoc_entries: [("2", s("bar3")), ("foo", s("bar")), ("asdf", s("fdsa"))]
                 .iter()
@@ -340,16 +362,24 @@ mod test {
     }
     #[test]
     fn encodes_object() {
-        encode_eq!(typed_obj("org.amf.ASClass",
-                             &[("foo", s("bar")), ("baz", Value::Null)][..]),
-                   "amf3-typed-object.bin");
-        encode_eq!(obj(&[("foo", s("bar")), ("answer", i(42))][..]),
-                   "amf3-hash.bin");
+        encode_eq!(
+            typed_obj(
+                "org.amf.ASClass",
+                &[("foo", s("bar")), ("baz", Value::Null)][..]
+            ),
+            "amf3-typed-object.bin"
+        );
+        encode_eq!(
+            obj(&[("foo", s("bar")), ("answer", i(42))][..]),
+            "amf3-hash.bin"
+        );
     }
     #[test]
     fn encodes_xml_doc() {
-        encode_eq!(Value::XmlDocument("<parent><child prop=\"test\" /></parent>".to_string()),
-                   "amf3-xml-doc.bin");
+        encode_eq!(
+            Value::XmlDocument("<parent><child prop=\"test\" /></parent>".to_string()),
+            "amf3-xml-doc.bin"
+        );
     }
     #[test]
     fn encodes_xml() {
@@ -358,48 +388,74 @@ mod test {
     }
     #[test]
     fn encodes_byte_array() {
-        encode_eq!(Value::ByteArray(vec![0, 3, 227, 129, 147, 227, 130, 140, 116, 101, 115, 116,
-                                         64]),
-                   "amf3-byte-array.bin");
+        encode_eq!(
+            Value::ByteArray(vec![
+                0, 3, 227, 129, 147, 227, 130, 140, 116, 101, 115, 116, 64
+            ]),
+            "amf3-byte-array.bin"
+        );
     }
     #[test]
     fn encodes_date() {
-        let d = Value::Date { unix_time: time::Duration::from_secs(0) };
+        let d = Value::Date {
+            unix_time: time::Duration::from_secs(0),
+        };
         encode_eq!(d, "amf3-date.bin");
     }
     #[test]
     fn encodes_dictionary() {
-        let entries = vec![(s("bar"), s("asdf1")),
-                           (typed_obj("org.amf.ASClass",
-                                      &[("foo", s("baz")), ("baz", Value::Null)][..]),
-                            s("asdf2"))];
+        let entries = vec![
+            (s("bar"), s("asdf1")),
+            (
+                typed_obj(
+                    "org.amf.ASClass",
+                    &[("foo", s("baz")), ("baz", Value::Null)][..],
+                ),
+                s("asdf2"),
+            ),
+        ];
         encode_and_decode!(dic(&entries));
         encode_eq!(dic(&[][..]), "amf3-empty-dictionary.bin");
     }
     #[test]
     fn encodes_vector() {
-        encode_eq!(Value::IntVector {
-                       is_fixed: false,
-                       entries: vec![4, -20, 12],
-                   },
-                   "amf3-vector-int.bin");
+        encode_eq!(
+            Value::IntVector {
+                is_fixed: false,
+                entries: vec![4, -20, 12],
+            },
+            "amf3-vector-int.bin"
+        );
 
-        encode_eq!(Value::UintVector {
-                       is_fixed: false,
-                       entries: vec![4, 20, 12],
-                   },
-                   "amf3-vector-uint.bin");
+        encode_eq!(
+            Value::UintVector {
+                is_fixed: false,
+                entries: vec![4, 20, 12],
+            },
+            "amf3-vector-uint.bin"
+        );
 
-        encode_eq!(Value::DoubleVector {
-                       is_fixed: false,
-                       entries: vec![4.3, -20.6],
-                   },
-                   "amf3-vector-double.bin");
+        encode_eq!(
+            Value::DoubleVector {
+                is_fixed: false,
+                entries: vec![4.3, -20.6],
+            },
+            "amf3-vector-double.bin"
+        );
 
         let objects = vec![
-            typed_obj("org.amf.ASClass", &[("foo", s("foo")), ("baz", Value::Null)][..]),
-            typed_obj("org.amf.ASClass", &[("foo", s("bar")), ("baz", Value::Null)][..]),
-            typed_obj("org.amf.ASClass", &[("foo", s("baz")), ("baz", Value::Null)][..]),
+            typed_obj(
+                "org.amf.ASClass",
+                &[("foo", s("foo")), ("baz", Value::Null)][..],
+            ),
+            typed_obj(
+                "org.amf.ASClass",
+                &[("foo", s("bar")), ("baz", Value::Null)][..],
+            ),
+            typed_obj(
+                "org.amf.ASClass",
+                &[("foo", s("baz")), ("baz", Value::Null)][..],
+            ),
         ];
         encode_and_decode!(Value::ObjectVector {
             class_name: Some("org.amf.ASClass".to_string()),
@@ -429,12 +485,11 @@ mod test {
     fn dic(entries: &[(Value, Value)]) -> Value {
         Value::Dictionary {
             is_weak: false,
-            entries: entries.iter()
-                .map(|e| {
-                    Pair {
-                        key: e.0.clone(),
-                        value: e.1.clone(),
-                    }
+            entries: entries
+                .iter()
+                .map(|e| Pair {
+                    key: e.0.clone(),
+                    value: e.1.clone(),
                 })
                 .collect(),
         }
@@ -443,18 +498,14 @@ mod test {
         Value::Object {
             class_name: None,
             sealed_count: 0,
-            entries: entries.iter()
-                .map(|e| pair(e.0, e.1.clone()))
-                .collect(),
+            entries: entries.iter().map(|e| pair(e.0, e.1.clone())).collect(),
         }
     }
     fn typed_obj(class: &str, entries: &[(&str, Value)]) -> Value {
         Value::Object {
             class_name: Some(class.to_string()),
             sealed_count: entries.len(),
-            entries: entries.iter()
-                .map(|e| pair(e.0, e.1.clone()))
-                .collect(),
+            entries: entries.iter().map(|e| pair(e.0, e.1.clone())).collect(),
         }
     }
 }

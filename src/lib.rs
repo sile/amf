@@ -58,7 +58,8 @@ impl Value {
     /// for the sake of simplicity of the resulting value representation.
     /// And circular reference are unsupported (i.e., those are treated as errors).
     pub fn read_from<R>(reader: R, version: Version) -> DecodeResult<Self>
-        where R: io::Read
+    where
+        R: io::Read,
     {
         match version {
             Version::Amf0 => Amf0Value::read_from(reader).map(Value::Amf0),
@@ -68,7 +69,8 @@ impl Value {
 
     /// Writes the AMF encoded bytes of this value to `writer`.
     pub fn write_to<W>(&self, writer: W) -> io::Result<()>
-        where W: io::Write
+    where
+        W: io::Write,
     {
         match *self {
             Value::Amf0(ref x) => x.write_to(writer),
@@ -96,12 +98,11 @@ impl Value {
     pub fn try_into_values(self) -> Result<Box<Iterator<Item = Value>>, Self> {
         match self {
             Value::Amf0(x) => x.try_into_values().map_err(Value::Amf0),
-            Value::Amf3(x) => {
-                x.try_into_values()
-                    .map(|iter| iter.map(Value::Amf3))
-                    .map(iter_boxed)
-                    .map_err(Value::Amf3)
-            }
+            Value::Amf3(x) => x
+                .try_into_values()
+                .map(|iter| iter.map(Value::Amf3))
+                .map(iter_boxed)
+                .map_err(Value::Amf3),
         }
     }
 
@@ -109,12 +110,11 @@ impl Value {
     pub fn try_into_pairs(self) -> Result<Box<Iterator<Item = (String, Value)>>, Self> {
         match self {
             Value::Amf0(x) => x.try_into_pairs().map_err(Value::Amf0),
-            Value::Amf3(x) => {
-                x.try_into_pairs()
-                    .map(|iter| iter.map(|(k, v)| (k, Value::Amf3(v))))
-                    .map(iter_boxed)
-                    .map_err(Value::Amf3)
-            }
+            Value::Amf3(x) => x
+                .try_into_pairs()
+                .map(|iter| iter.map(|(k, v)| (k, Value::Amf3(v))))
+                .map(iter_boxed)
+                .map_err(Value::Amf3),
         }
     }
 }
@@ -140,7 +140,8 @@ pub struct Pair<K, V> {
 }
 
 fn iter_boxed<I, T>(iter: I) -> Box<Iterator<Item = T>>
-    where I: Iterator<Item = T> + 'static
+where
+    I: Iterator<Item = T> + 'static,
 {
     Box::new(iter)
 }

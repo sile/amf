@@ -1,7 +1,7 @@
 extern crate amf;
 
-use std::io;
 use amf::{Value, Version};
+use std::io;
 
 fn main() {
     let mut input = io::stdin();

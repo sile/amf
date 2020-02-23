@@ -1,12 +1,12 @@
+use byteorder::BigEndian;
+use byteorder::WriteBytesExt;
 use std::io;
 use std::time;
-use byteorder::WriteBytesExt;
-use byteorder::BigEndian;
 
-use Pair;
-use amf3;
-use super::Value;
 use super::marker;
+use super::Value;
+use amf3;
+use Pair;
 
 /// AMF0 encoder.
 #[derive(Debug)]
@@ -20,7 +20,8 @@ impl<W> Encoder<W> {
     }
 }
 impl<W> Encoder<W>
-    where W: io::Write
+where
+    W: io::Write,
 {
     /// Makes a new instance.
     pub fn new(inner: W) -> Self {
@@ -32,9 +33,10 @@ impl<W> Encoder<W>
             Value::Number(x) => self.encode_number(x),
             Value::Boolean(x) => self.encode_boolean(x),
             Value::String(ref x) => self.encode_string(x),
-            Value::Object { ref class_name, ref entries } => {
-                self.encode_object(class_name, entries)
-            }
+            Value::Object {
+                ref class_name,
+                ref entries,
+            } => self.encode_object(class_name, entries),
             Value::Null => self.encode_null(),
             Value::Undefined => self.encode_undefined(),
             Value::EcmaArray { ref entries } => self.encode_ecma_array(entries),
@@ -65,10 +67,11 @@ impl<W> Encoder<W>
         }
         Ok(())
     }
-    fn encode_object(&mut self,
-                     class_name: &Option<String>,
-                     entries: &[Pair<String, Value>])
-                     -> io::Result<()> {
+    fn encode_object(
+        &mut self,
+        class_name: &Option<String>,
+        entries: &[Pair<String, Value>],
+    ) -> io::Result<()> {
         assert!(entries.len() <= 0xFFFF_FFFF);
         if let Some(class_name) = class_name.as_ref() {
             try!(self.inner.write_u8(marker::TYPED_OBJECT));
@@ -147,21 +150,19 @@ impl<W> Encoder<W>
 
 #[cfg(test)]
 mod test {
-    use std::time;
-    use std::iter;
-    use Pair;
-    use amf3;
     use super::super::Value;
+    use amf3;
+    use std::iter;
+    use std::time;
+    use Pair;
 
     macro_rules! encode_eq {
-        ($value:expr, $file:expr) => {
-            {
-                let expected = include_bytes!(concat!("../testdata/", $file));
-                let mut buf = Vec::new();
-                $value.write_to(&mut buf).unwrap();
-                assert_eq!(buf, &expected[..]);
-            }
-        }
+        ($value:expr, $file:expr) => {{
+            let expected = include_bytes!(concat!("../testdata/", $file));
+            let mut buf = Vec::new();
+            $value.write_to(&mut buf).unwrap();
+            assert_eq!(buf, &expected[..]);
+        }};
     }
 
     #[test]
@@ -175,26 +176,42 @@ mod test {
     }
     #[test]
     fn encodes_string() {
-        encode_eq!(Value::String("this is a テスト".to_string()),
-                   "amf0-string.bin");
-        encode_eq!(obj(None,
-                       &[("utf", s("UTF テスト")),
-                         ("zed", n(5.0)),
-                         ("shift", s("Shift テスト"))][..]),
-                   "amf0-complex-encoded-string.bin");
+        encode_eq!(
+            Value::String("this is a テスト".to_string()),
+            "amf0-string.bin"
+        );
+        encode_eq!(
+            obj(
+                None,
+                &[
+                    ("utf", s("UTF テスト")),
+                    ("zed", n(5.0)),
+                    ("shift", s("Shift テスト"))
+                ][..]
+            ),
+            "amf0-complex-encoded-string.bin"
+        );
     }
     #[test]
     fn encodes_long_string() {
-        encode_eq!(Value::String(iter::repeat('a').take(0x10013).collect()),
-                   "amf0-long-string.bin");
+        encode_eq!(
+            Value::String(iter::repeat('a').take(0x10013).collect()),
+            "amf0-long-string.bin"
+        );
     }
     #[test]
     fn encodes_object() {
-        encode_eq!(obj(None,
-                       &[("", s("")), ("foo", s("baz")), ("bar", n(3.14))][..]),
-                   "amf0-object.bin");
-        encode_eq!(obj(None, &[("foo", s("bar")), ("baz", Value::Null)][..]),
-                   "amf0-untyped-object.bin");
+        encode_eq!(
+            obj(
+                None,
+                &[("", s("")), ("foo", s("baz")), ("bar", n(3.14))][..]
+            ),
+            "amf0-object.bin"
+        );
+        encode_eq!(
+            obj(None, &[("foo", s("bar")), ("baz", Value::Null)][..]),
+            "amf0-untyped-object.bin"
+        );
     }
     #[test]
     fn encodes_null() {
@@ -207,31 +224,51 @@ mod test {
     #[test]
     fn encodes_ecma_array() {
         let entries = es(&[("0", s("a")), ("1", s("b")), ("2", s("c")), ("3", s("d"))][..]);
-        encode_eq!(Value::EcmaArray { entries: entries },
-                   "amf0-ecma-ordinal-array.bin");
+        encode_eq!(
+            Value::EcmaArray { entries: entries },
+            "amf0-ecma-ordinal-array.bin"
+        );
     }
     #[test]
     fn encodes_string_array() {
-        encode_eq!(Value::Array { entries: vec![n(1.0), s("2"), n(3.0)] },
-                   "amf0-strict-array.bin");
+        encode_eq!(
+            Value::Array {
+                entries: vec![n(1.0), s("2"), n(3.0)]
+            },
+            "amf0-strict-array.bin"
+        );
     }
     #[test]
     fn encodes_date() {
-        encode_eq!(Value::Date { unix_time: time::Duration::from_millis(1590796800_000) },
-                   "amf0-date.bin");
-        encode_eq!(Value::Date { unix_time: time::Duration::from_millis(1045112400_000) },
-                   "amf0-time.bin");
+        encode_eq!(
+            Value::Date {
+                unix_time: time::Duration::from_millis(1590796800_000)
+            },
+            "amf0-date.bin"
+        );
+        encode_eq!(
+            Value::Date {
+                unix_time: time::Duration::from_millis(1045112400_000)
+            },
+            "amf0-time.bin"
+        );
     }
     #[test]
     fn encodes_xml_document() {
-        encode_eq!(Value::XmlDocument("<parent><child prop=\"test\" /></parent>".to_string()),
-                   "amf0-xml-doc.bin");
+        encode_eq!(
+            Value::XmlDocument("<parent><child prop=\"test\" /></parent>".to_string()),
+            "amf0-xml-doc.bin"
+        );
     }
     #[test]
     fn encodes_typed_object() {
-        encode_eq!(obj(Some("org.amf.ASClass"),
-                       &[("foo", s("bar")), ("baz", Value::Null)]),
-                   "amf0-typed-object.bin");
+        encode_eq!(
+            obj(
+                Some("org.amf.ASClass"),
+                &[("foo", s("bar")), ("baz", Value::Null)]
+            ),
+            "amf0-typed-object.bin"
+        );
     }
     #[test]
     fn encodes_avmplus() {
@@ -255,12 +292,11 @@ mod test {
         }
     }
     fn es(entries: &[(&str, Value)]) -> Vec<Pair<String, Value>> {
-        entries.iter()
-            .map(|e| {
-                Pair {
-                    key: e.0.to_string(),
-                    value: e.1.clone(),
-                }
+        entries
+            .iter()
+            .map(|e| Pair {
+                key: e.0.to_string(),
+                value: e.1.clone(),
             })
             .collect()
     }

@@ -17,8 +17,8 @@ use std::io;
 use std::time;
 
 use amf3;
-use Pair;
 use DecodeResult;
+use Pair;
 
 pub use self::decode::Decoder;
 pub use self::encode::Encoder;
@@ -137,14 +137,16 @@ impl Value {
     /// for the sake of simplicity of the resulting value representation.
     /// And circular reference are unsupported (i.e., those are treated as errors).
     pub fn read_from<R>(reader: R) -> DecodeResult<Self>
-        where R: io::Read
+    where
+        R: io::Read,
     {
         Decoder::new(reader).decode()
     }
 
     /// Writes the AMF0 encoded bytes of this value to `writer`.
     pub fn write_to<W>(&self, writer: W) -> io::Result<()>
-        where W: io::Write
+    where
+        W: io::Write,
     {
         Encoder::new(writer).encode(self)
     }
@@ -172,12 +174,11 @@ impl Value {
     pub fn try_into_values(self) -> Result<Box<Iterator<Item = super::Value>>, Self> {
         match self {
             Value::Array { entries } => Ok(Box::new(entries.into_iter().map(super::Value::Amf0))),
-            Value::AvmPlus(x) => {
-                x.try_into_values()
-                    .map(|iter| iter.map(super::Value::Amf3))
-                    .map(super::iter_boxed)
-                    .map_err(Value::AvmPlus)
-            }
+            Value::AvmPlus(x) => x
+                .try_into_values()
+                .map(|iter| iter.map(super::Value::Amf3))
+                .map(super::iter_boxed)
+                .map_err(Value::AvmPlus),
             _ => Err(self),
         }
     }
@@ -185,18 +186,21 @@ impl Value {
     /// Tries to convert the value as an iterator of the contained pairs.
     pub fn try_into_pairs(self) -> Result<Box<Iterator<Item = (String, super::Value)>>, Self> {
         match self {
-            Value::EcmaArray { entries } => {
-                Ok(Box::new(entries.into_iter().map(|p| (p.key, super::Value::Amf0(p.value)))))
-            }
-            Value::Object { entries, .. } => {
-                Ok(Box::new(entries.into_iter().map(|p| (p.key, super::Value::Amf0(p.value)))))
-            }
-            Value::AvmPlus(x) => {
-                x.try_into_pairs()
-                    .map(|ps| ps.map(|(k, v)| (k, super::Value::Amf3(v))))
-                    .map(super::iter_boxed)
-                    .map_err(Value::AvmPlus)
-            }
+            Value::EcmaArray { entries } => Ok(Box::new(
+                entries
+                    .into_iter()
+                    .map(|p| (p.key, super::Value::Amf0(p.value))),
+            )),
+            Value::Object { entries, .. } => Ok(Box::new(
+                entries
+                    .into_iter()
+                    .map(|p| (p.key, super::Value::Amf0(p.value))),
+            )),
+            Value::AvmPlus(x) => x
+                .try_into_pairs()
+                .map(|ps| ps.map(|(k, v)| (k, super::Value::Amf3(v))))
+                .map(super::iter_boxed)
+                .map_err(Value::AvmPlus),
             _ => Err(self),
         }
     }
@@ -204,30 +208,32 @@ impl Value {
 
 /// Makes a `String` value.
 pub fn string<T>(t: T) -> Value
-    where String: From<T>
+where
+    String: From<T>,
 {
     Value::String(From::from(t))
 }
 
 /// Makes a `Number` value.
 pub fn number<T>(t: T) -> Value
-    where f64: From<T>
+where
+    f64: From<T>,
 {
     Value::Number(From::from(t))
 }
 
 /// Makes an anonymous `Object` value.
 pub fn object<I, K>(entries: I) -> Value
-    where I: Iterator<Item = (K, Value)>,
-          String: From<K>
+where
+    I: Iterator<Item = (K, Value)>,
+    String: From<K>,
 {
     Value::Object {
         class_name: None,
-        entries: entries.map(|(k, v)| {
-                Pair {
-                    key: From::from(k),
-                    value: v,
-                }
+        entries: entries
+            .map(|(k, v)| Pair {
+                key: From::from(k),
+                value: v,
             })
             .collect(),
     }

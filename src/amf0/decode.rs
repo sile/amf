@@ -1,14 +1,14 @@
-use std::io;
-use std::time;
 use byteorder::BigEndian;
 use byteorder::ReadBytesExt;
+use std::io;
+use std::time;
 
-use amf3;
-use Pair;
-use DecodeResult;
-use error::DecodeError;
-use super::Value;
 use super::marker;
+use super::Value;
+use amf3;
+use error::DecodeError;
+use DecodeResult;
+use Pair;
 
 /// AMF0 decoder.
 #[derive(Debug)]
@@ -23,7 +23,8 @@ impl<R> Decoder<R> {
     }
 }
 impl<R> Decoder<R>
-    where R: io::Read
+where
+    R: io::Read,
 {
     /// Makes a new instance.
     pub fn new(inner: R) -> Self {
@@ -89,10 +90,12 @@ impl<R> Decoder<R>
         self.complexes
             .get(index)
             .ok_or(DecodeError::OutOfRangeReference { index: index })
-            .and_then(|v| if *v == Value::Null {
-                Err(DecodeError::CircularReference { index: index })
-            } else {
-                Ok(v.clone())
+            .and_then(|v| {
+                if *v == Value::Null {
+                    Err(DecodeError::CircularReference { index: index })
+                } else {
+                    Ok(v.clone())
+                }
             })
     }
     fn decode_ecma_array(&mut self) -> DecodeResult<Value> {
@@ -117,7 +120,9 @@ impl<R> Decoder<R>
         } else if !(millis.is_finite() && millis.is_sign_positive()) {
             Err(DecodeError::InvalidDate { millis: millis })
         } else {
-            Ok(Value::Date { unix_time: time::Duration::from_millis(millis as u64) })
+            Ok(Value::Date {
+                unix_time: time::Duration::from_millis(millis as u64),
+            })
         }
     }
     fn decode_long_string(&mut self) -> DecodeResult<Value> {
@@ -169,7 +174,8 @@ impl<R> Decoder<R>
         Ok(entries)
     }
     fn decode_complex_type<F>(&mut self, f: F) -> DecodeResult<Value>
-        where F: FnOnce(&mut Self) -> DecodeResult<Value>
+    where
+        F: FnOnce(&mut Self) -> DecodeResult<Value>,
     {
         let index = self.complexes.len();
         self.complexes.push(Value::Null);
@@ -181,42 +187,36 @@ impl<R> Decoder<R>
 
 #[cfg(test)]
 mod test {
+    use super::super::marker;
+    use super::super::Value;
+    use amf3;
+    use error::DecodeError;
+    use std::f64;
     use std::io;
     use std::iter;
     use std::time;
-    use std::f64;
     use Pair;
-    use amf3;
-    use error::DecodeError;
-    use super::super::Value;
-    use super::super::marker;
 
     macro_rules! decode {
-        ($file:expr) => {
-            {
-                let input = include_bytes!(concat!("../testdata/", $file));
-                Value::read_from(&mut &input[..])
-            }
-        }
+        ($file:expr) => {{
+            let input = include_bytes!(concat!("../testdata/", $file));
+            Value::read_from(&mut &input[..])
+        }};
     }
     macro_rules! decode_eq {
-        ($file:expr, $expected: expr) => {
-            {
-                let value = decode!($file).unwrap();
-                assert_eq!(value, $expected)
-            }
-        }
+        ($file:expr, $expected: expr) => {{
+            let value = decode!($file).unwrap();
+            assert_eq!(value, $expected)
+        }};
     }
     macro_rules! decode_unexpected_eof {
-        ($file:expr) => {
-            {
-                let result = decode!($file);
-                match result {
-                    Err(DecodeError::Io(e)) => assert_eq!(e.kind(), io::ErrorKind::UnexpectedEof),
-                    _ => assert!(false),
-                }
+        ($file:expr) => {{
+            let result = decode!($file);
+            match result {
+                Err(DecodeError::Io(e)) => assert_eq!(e.kind(), io::ErrorKind::UnexpectedEof),
+                _ => assert!(false),
             }
-        }
+        }};
     }
 
     #[test]
@@ -236,15 +236,21 @@ mod test {
     #[test]
     fn decodes_number() {
         decode_eq!("amf0-number.bin", Value::Number(3.5));
-        decode_eq!("amf0-number-positive-infinity.bin",
-                   Value::Number(f64::INFINITY));
-        decode_eq!("amf0-number-negative-infinity.bin",
-                   Value::Number(f64::NEG_INFINITY));
+        decode_eq!(
+            "amf0-number-positive-infinity.bin",
+            Value::Number(f64::INFINITY)
+        );
+        decode_eq!(
+            "amf0-number-negative-infinity.bin",
+            Value::Number(f64::NEG_INFINITY)
+        );
 
-        let is_nan = |v| if let Value::Number(n) = v {
-            n.is_nan()
-        } else {
-            false
+        let is_nan = |v| {
+            if let Value::Number(n) = v {
+                n.is_nan()
+            } else {
+                false
+            }
         };
         assert!(is_nan(decode!("amf0-number-quiet-nan.bin").unwrap()));
         assert!(is_nan(decode!("amf0-number-signaling-nan.bin").unwrap()));
@@ -253,59 +259,97 @@ mod test {
     }
     #[test]
     fn decodes_string() {
-        decode_eq!("amf0-string.bin",
-                   Value::String("this is a テスト".to_string()));
-        decode_eq!("amf0-complex-encoded-string.bin",
-                   obj(None,
-                       &[("utf", s("UTF テスト")),
-                         ("zed", n(5.0)),
-                         ("shift", s("Shift テスト"))][..]));
+        decode_eq!(
+            "amf0-string.bin",
+            Value::String("this is a テスト".to_string())
+        );
+        decode_eq!(
+            "amf0-complex-encoded-string.bin",
+            obj(
+                None,
+                &[
+                    ("utf", s("UTF テスト")),
+                    ("zed", n(5.0)),
+                    ("shift", s("Shift テスト"))
+                ][..]
+            )
+        );
         decode_unexpected_eof!("amf0-string-partial.bin");
     }
     #[test]
     fn decodes_long_string() {
-        decode_eq!("amf0-long-string.bin",
-                   Value::String(iter::repeat('a').take(0x10013).collect()));
+        decode_eq!(
+            "amf0-long-string.bin",
+            Value::String(iter::repeat('a').take(0x10013).collect())
+        );
         decode_unexpected_eof!("amf0-long-string-partial.bin");
     }
     #[test]
     fn decodes_xml_document() {
-        decode_eq!("amf0-xml-doc.bin",
-                   Value::XmlDocument("<parent><child prop=\"test\" /></parent>".to_string()));
+        decode_eq!(
+            "amf0-xml-doc.bin",
+            Value::XmlDocument("<parent><child prop=\"test\" /></parent>".to_string())
+        );
         decode_unexpected_eof!("amf0-xml-document-partial.bin");
     }
     #[test]
     fn decodes_object() {
-        decode_eq!("amf0-object.bin",
-                   obj(None,
-                       &[("", s("")), ("foo", s("baz")), ("bar", n(3.14))][..]));
-        decode_eq!("amf0-untyped-object.bin",
-                   obj(None, &[("foo", s("bar")), ("baz", Value::Null)][..]));
-        assert_eq!(decode!("amf0-bad-object-end.bin"),
-                   Err(DecodeError::UnexpectedObjectEnd));
+        decode_eq!(
+            "amf0-object.bin",
+            obj(
+                None,
+                &[("", s("")), ("foo", s("baz")), ("bar", n(3.14))][..]
+            )
+        );
+        decode_eq!(
+            "amf0-untyped-object.bin",
+            obj(None, &[("foo", s("bar")), ("baz", Value::Null)][..])
+        );
+        assert_eq!(
+            decode!("amf0-bad-object-end.bin"),
+            Err(DecodeError::UnexpectedObjectEnd)
+        );
         decode_unexpected_eof!("amf0-object-partial.bin");
     }
     #[test]
     fn decodes_typed_object() {
-        decode_eq!("amf0-typed-object.bin",
-                   obj(Some("org.amf.ASClass"),
-                       &[("foo", s("bar")), ("baz", Value::Null)]));
+        decode_eq!(
+            "amf0-typed-object.bin",
+            obj(
+                Some("org.amf.ASClass"),
+                &[("foo", s("bar")), ("baz", Value::Null)]
+            )
+        );
         decode_unexpected_eof!("amf0-typed-object-partial.bin");
     }
     #[test]
     fn decodes_unsupported() {
-        assert_eq!(decode!("amf0-movieclip.bin"),
-                   Err(DecodeError::Unsupported { marker: marker::MOVIECLIP }));
-        assert_eq!(decode!("amf0-recordset.bin"),
-                   Err(DecodeError::Unsupported { marker: marker::RECORDSET }));
-        assert_eq!(decode!("amf0-unsupported.bin"),
-                   Err(DecodeError::Unsupported { marker: marker::UNSUPPORTED }));
+        assert_eq!(
+            decode!("amf0-movieclip.bin"),
+            Err(DecodeError::Unsupported {
+                marker: marker::MOVIECLIP
+            })
+        );
+        assert_eq!(
+            decode!("amf0-recordset.bin"),
+            Err(DecodeError::Unsupported {
+                marker: marker::RECORDSET
+            })
+        );
+        assert_eq!(
+            decode!("amf0-unsupported.bin"),
+            Err(DecodeError::Unsupported {
+                marker: marker::UNSUPPORTED
+            })
+        );
     }
     #[test]
     fn decodes_ecma_array() {
         let entries = es(&[("0", s("a")), ("1", s("b")), ("2", s("c")), ("3", s("d"))][..]);
-        decode_eq!("amf0-ecma-ordinal-array.bin",
-                   Value::EcmaArray { entries: entries });
+        decode_eq!(
+            "amf0-ecma-ordinal-array.bin",
+            Value::EcmaArray { entries: entries }
+        );
         decode_unexpected_eof!("amf0-ecma-array-partial.bin");
 
         let entries = es(&[("c", s("d")), ("a", s("b"))][..]);
@@ -313,8 +357,12 @@ mod test {
     }
     #[test]
     fn decodes_strict_array() {
-        decode_eq!("amf0-strict-array.bin",
-                   Value::Array { entries: vec![n(1.0), s("2"), n(3.0)] });
+        decode_eq!(
+            "amf0-strict-array.bin",
+            Value::Array {
+                entries: vec![n(1.0), s("2"), n(3.0)]
+            }
+        );
         decode_unexpected_eof!("amf0-strict-array-partial.bin");
     }
     #[test]
@@ -324,22 +372,40 @@ mod test {
         decode_eq!("amf0-ref-test.bin", expected);
         decode_unexpected_eof!("amf0-reference-partial.bin");
 
-        assert_eq!(decode!("amf0-bad-reference.bin"),
-                   Err(DecodeError::OutOfRangeReference { index: 0 }));
-        assert_eq!(decode!("amf0-circular-reference.bin"),
-                   Err(DecodeError::CircularReference { index: 0 }));
+        assert_eq!(
+            decode!("amf0-bad-reference.bin"),
+            Err(DecodeError::OutOfRangeReference { index: 0 })
+        );
+        assert_eq!(
+            decode!("amf0-circular-reference.bin"),
+            Err(DecodeError::CircularReference { index: 0 })
+        );
     }
     #[test]
     fn decodes_date() {
-        decode_eq!("amf0-date.bin",
-                   Value::Date { unix_time: time::Duration::from_millis(1590796800_000) });
-        decode_eq!("amf0-time.bin",
-                   Value::Date { unix_time: time::Duration::from_millis(1045112400_000) });
+        decode_eq!(
+            "amf0-date.bin",
+            Value::Date {
+                unix_time: time::Duration::from_millis(1590796800_000)
+            }
+        );
+        decode_eq!(
+            "amf0-time.bin",
+            Value::Date {
+                unix_time: time::Duration::from_millis(1045112400_000)
+            }
+        );
         decode_unexpected_eof!("amf0-date-partial.bin");
-        assert_eq!(decode!("amf0-date-minus.bin"),
-                   Err(DecodeError::InvalidDate { millis: -1.0 }));
-        assert_eq!(decode!("amf0-date-invalid.bin"),
-                   Err(DecodeError::InvalidDate { millis: f64::INFINITY }));
+        assert_eq!(
+            decode!("amf0-date-minus.bin"),
+            Err(DecodeError::InvalidDate { millis: -1.0 })
+        );
+        assert_eq!(
+            decode!("amf0-date-invalid.bin"),
+            Err(DecodeError::InvalidDate {
+                millis: f64::INFINITY
+            })
+        );
     }
     #[test]
     fn decodes_avmplus() {
@@ -352,8 +418,10 @@ mod test {
     #[test]
     fn other_errors() {
         decode_unexpected_eof!("amf0-empty.bin");
-        assert_eq!(decode!("amf0-unknown-marker.bin"),
-                   Err(DecodeError::Unknown { marker: 97 }));
+        assert_eq!(
+            decode!("amf0-unknown-marker.bin"),
+            Err(DecodeError::Unknown { marker: 97 })
+        );
     }
 
     fn s(s: &str) -> Value {
@@ -369,12 +437,11 @@ mod test {
         }
     }
     fn es(entries: &[(&str, Value)]) -> Vec<Pair<String, Value>> {
-        entries.iter()
-            .map(|e| {
-                Pair {
-                    key: e.0.to_string(),
-                    value: e.1.clone(),
-                }
+        entries
+            .iter()
+            .map(|e| Pair {
+                key: e.0.to_string(),
+                value: e.1.clone(),
             })
             .collect()
     }

@@ -1,14 +1,14 @@
-use std::io;
-use std::time;
 use byteorder::BigEndian;
 use byteorder::ReadBytesExt;
+use std::io;
+use std::time;
 
-use Pair;
-use DecodeResult;
 use error::DecodeError;
+use DecodeResult;
+use Pair;
 
-use super::Value;
 use super::marker;
+use super::Value;
 
 #[derive(Debug, Clone)]
 struct Trait {
@@ -42,7 +42,8 @@ impl<R> Decoder<R> {
     }
 }
 impl<R> Decoder<R>
-    where R: io::Read
+where
+    R: io::Read,
 {
     /// Makes a new instance.
     pub fn new(inner: R) -> Self {
@@ -109,7 +110,9 @@ impl<R> Decoder<R>
             if !(millis.is_finite() && millis.is_sign_positive()) {
                 Err(DecodeError::InvalidDate { millis: millis })
             } else {
-                Ok(Value::Date { unix_time: time::Duration::from_millis(millis as u64) })
+                Ok(Value::Date {
+                    unix_time: time::Duration::from_millis(millis as u64),
+                })
             }
         })
     }
@@ -126,7 +129,8 @@ impl<R> Decoder<R>
     fn decode_object(&mut self) -> DecodeResult<Value> {
         self.decode_complex_type(|this, u28| {
             let amf_trait = try!(this.decode_trait(u28));
-            let mut entries = try!(amf_trait.fields
+            let mut entries = try!(amf_trait
+                .fields
                 .iter()
                 .map(|k| {
                     Ok(Pair {
@@ -154,7 +158,9 @@ impl<R> Decoder<R>
     fn decode_vector_int(&mut self) -> DecodeResult<Value> {
         self.decode_complex_type(|this, count| {
             let is_fixed = try!(this.inner.read_u8()) != 0;
-            let entries = try!((0..count).map(|_| this.inner.read_i32::<BigEndian>()).collect());
+            let entries = try!((0..count)
+                .map(|_| this.inner.read_i32::<BigEndian>())
+                .collect());
             Ok(Value::IntVector {
                 is_fixed: is_fixed,
                 entries: entries,
@@ -164,7 +170,9 @@ impl<R> Decoder<R>
     fn decode_vector_uint(&mut self) -> DecodeResult<Value> {
         self.decode_complex_type(|this, count| {
             let is_fixed = try!(this.inner.read_u8()) != 0;
-            let entries = try!((0..count).map(|_| this.inner.read_u32::<BigEndian>()).collect());
+            let entries = try!((0..count)
+                .map(|_| this.inner.read_u32::<BigEndian>())
+                .collect());
             Ok(Value::UintVector {
                 is_fixed: is_fixed,
                 entries: entries,
@@ -174,7 +182,9 @@ impl<R> Decoder<R>
     fn decode_vector_double(&mut self) -> DecodeResult<Value> {
         self.decode_complex_type(|this, count| {
             let is_fixed = try!(this.inner.read_u8()) != 0;
-            let entries = try!((0..count).map(|_| this.inner.read_f64::<BigEndian>()).collect());
+            let entries = try!((0..count)
+                .map(|_| this.inner.read_f64::<BigEndian>())
+                .collect());
             Ok(Value::DoubleVector {
                 is_fixed: is_fixed,
                 entries: entries,
@@ -230,7 +240,8 @@ impl<R> Decoder<R>
                 Ok(s)
             }
             SizeOrIndex::Index(index) => {
-                let s = try!(self.strings
+                let s = try!(self
+                    .strings
                     .get(index)
                     .ok_or(DecodeError::OutOfRangeReference { index: index }));
                 Ok(s.clone())
@@ -261,19 +272,21 @@ impl<R> Decoder<R>
         }
     }
     fn decode_complex_type<F>(&mut self, f: F) -> DecodeResult<Value>
-        where F: FnOnce(&mut Self, usize) -> DecodeResult<Value>
+    where
+        F: FnOnce(&mut Self, usize) -> DecodeResult<Value>,
     {
         match try!(self.decode_size_or_index()) {
-            SizeOrIndex::Index(index) => {
-                self.complexes
-                    .get(index)
-                    .ok_or(DecodeError::OutOfRangeReference { index: index })
-                    .and_then(|v| if *v == Value::Null {
+            SizeOrIndex::Index(index) => self
+                .complexes
+                .get(index)
+                .ok_or(DecodeError::OutOfRangeReference { index: index })
+                .and_then(|v| {
+                    if *v == Value::Null {
                         Err(DecodeError::CircularReference { index: index })
                     } else {
                         Ok(v.clone())
-                    })
-            }
+                    }
+                }),
             SizeOrIndex::Size(u28) => {
                 let index = self.complexes.len();
                 self.complexes.push(Value::Null);
@@ -300,7 +313,10 @@ impl<R> Decoder<R>
     fn decode_trait(&mut self, u28: usize) -> DecodeResult<Trait> {
         if (u28 & 0b1) == 0 {
             let i = (u28 >> 1) as usize;
-            let t = try!(self.traits.get(i).ok_or(DecodeError::OutOfRangeReference { index: i }));
+            let t = try!(self
+                .traits
+                .get(i)
+                .ok_or(DecodeError::OutOfRangeReference { index: i }));
             Ok(t.clone())
         } else if (u28 & 0b10) != 0 {
             let class_name = try!(self.decode_utf8());
@@ -330,45 +346,40 @@ impl<R> Decoder<R>
         Ok(buf)
     }
     fn read_utf8(&mut self, len: usize) -> DecodeResult<String> {
-        self.read_bytes(len).and_then(|b| Ok(try!(String::from_utf8(b))))
+        self.read_bytes(len)
+            .and_then(|b| Ok(try!(String::from_utf8(b))))
     }
 }
 
 #[cfg(test)]
 mod test {
-    use std::io;
+    use super::super::Value;
+    use error::DecodeError;
     use std::f64;
+    use std::io;
     use std::time;
     use Pair;
-    use error::DecodeError;
-    use super::super::Value;
 
     macro_rules! decode {
-        ($file:expr) => {
-            {
-                let input = include_bytes!(concat!("../testdata/", $file));
-                Value::read_from(&mut &input[..])
-            }
-        }
+        ($file:expr) => {{
+            let input = include_bytes!(concat!("../testdata/", $file));
+            Value::read_from(&mut &input[..])
+        }};
     }
     macro_rules! decode_eq {
-        ($file:expr, $expected: expr) => {
-            {
-                let value = decode!($file).unwrap();
-                assert_eq!(value, $expected)
-            }
-        }
+        ($file:expr, $expected: expr) => {{
+            let value = decode!($file).unwrap();
+            assert_eq!(value, $expected)
+        }};
     }
     macro_rules! decode_unexpected_eof {
-        ($file:expr) => {
-            {
-                let result = decode!($file);
-                match result {
-                    Err(DecodeError::Io(e)) => assert_eq!(e.kind(), io::ErrorKind::UnexpectedEof),
-                    _ => assert!(false),
-                }
+        ($file:expr) => {{
+            let result = decode!($file);
+            match result {
+                Err(DecodeError::Io(e)) => assert_eq!(e.kind(), io::ErrorKind::UnexpectedEof),
+                _ => assert!(false),
             }
-        }
+        }};
     }
 
     #[test]
@@ -398,106 +409,172 @@ mod test {
         decode_eq!("amf3-bignum.bin", Value::Double(2f64.powf(1000f64)));
         decode_eq!("amf3-large-min.bin", Value::Double(-0x1000_0001 as f64));
         decode_eq!("amf3-large-max.bin", Value::Double(0x1000_0000 as f64));
-        decode_eq!("amf3-double-positive-infinity.bin",
-                   Value::Double(f64::INFINITY));
+        decode_eq!(
+            "amf3-double-positive-infinity.bin",
+            Value::Double(f64::INFINITY)
+        );
     }
     #[test]
     fn decodes_string() {
         decode_eq!("amf3-string.bin", s("String . String"));
         decode_eq!("amf3-symbol.bin", s("foo"));
-        decode_eq!("amf3-string-ref.bin",
-                   dense_array(&[s("foo"),
-                                 s("str"),
-                                 s("foo"),
-                                 s("str"),
-                                 s("foo"),
-                                 obj(&[("str", s("foo"))][..])][..]));
-        decode_eq!("amf3-encoded-string-ref.bin",
-                   dense_array(&[s("this is a テスト"), s("this is a テスト")][..]));
-        decode_eq!("amf3-complex-encoded-string-array.bin",
-                   dense_array(&[i(5), s("Shift テスト"), s("UTF テスト"), i(5)][..]));
-        decode_eq!("amf3-empty-string-ref.bin",
-                   dense_array(&[s(""), s("")][..]));
+        decode_eq!(
+            "amf3-string-ref.bin",
+            dense_array(
+                &[
+                    s("foo"),
+                    s("str"),
+                    s("foo"),
+                    s("str"),
+                    s("foo"),
+                    obj(&[("str", s("foo"))][..])
+                ][..]
+            )
+        );
+        decode_eq!(
+            "amf3-encoded-string-ref.bin",
+            dense_array(&[s("this is a テスト"), s("this is a テスト")][..])
+        );
+        decode_eq!(
+            "amf3-complex-encoded-string-array.bin",
+            dense_array(&[i(5), s("Shift テスト"), s("UTF テスト"), i(5)][..])
+        );
+        decode_eq!(
+            "amf3-empty-string-ref.bin",
+            dense_array(&[s(""), s("")][..])
+        );
     }
     #[test]
     fn decodes_array() {
-        decode_eq!("amf3-primitive-array.bin",
-                   dense_array(&[i(1), i(2), i(3), i(4), i(5)][..]));
-        decode_eq!("amf3-empty-array-ref.bin",
-                   dense_array(&[dense_array(&[][..]),
-                                 dense_array(&[][..]),
-                                 dense_array(&[][..]),
-                                 dense_array(&[][..])][..]));
-        decode_eq!("amf3-array-ref.bin",
-                   dense_array(&[dense_array(&[i(1),i(2),i(3)][..]),
-                                 dense_array(&[s("a"),s("b"),s("c")][..]),
-                                 dense_array(&[i(1),i(2),i(3)][..]),
-                                 dense_array(&[s("a"),s("b"),s("c")][..])][..]));
-        decode_eq!("amf3-associative-array.bin",
-                   Value::Array {
-                       assoc_entries: [("2", s("bar3")), ("foo", s("bar")), ("asdf", s("fdsa"))]
-                           .iter()
-                           .map(|e| pair(e.0, e.1.clone()))
-                           .collect(),
-                       dense_entries: vec![s("bar"), s("bar1"), s("bar2")],
-                   });
+        decode_eq!(
+            "amf3-primitive-array.bin",
+            dense_array(&[i(1), i(2), i(3), i(4), i(5)][..])
+        );
+        decode_eq!(
+            "amf3-empty-array-ref.bin",
+            dense_array(
+                &[
+                    dense_array(&[][..]),
+                    dense_array(&[][..]),
+                    dense_array(&[][..]),
+                    dense_array(&[][..])
+                ][..]
+            )
+        );
+        decode_eq!(
+            "amf3-array-ref.bin",
+            dense_array(
+                &[
+                    dense_array(&[i(1), i(2), i(3)][..]),
+                    dense_array(&[s("a"), s("b"), s("c")][..]),
+                    dense_array(&[i(1), i(2), i(3)][..]),
+                    dense_array(&[s("a"), s("b"), s("c")][..])
+                ][..]
+            )
+        );
+        decode_eq!(
+            "amf3-associative-array.bin",
+            Value::Array {
+                assoc_entries: [("2", s("bar3")), ("foo", s("bar")), ("asdf", s("fdsa"))]
+                    .iter()
+                    .map(|e| pair(e.0, e.1.clone()))
+                    .collect(),
+                dense_entries: vec![s("bar"), s("bar1"), s("bar2")],
+            }
+        );
 
         let o1 = obj(&[("foo_one", s("bar_one"))][..]);
         let o2 = obj(&[("foo_two", s(""))][..]);
         let o3 = obj(&[("foo_three", i(42))][..]);
         let empty = obj(&[][..]);
-        decode_eq!("amf3-mixed-array.bin",
-                   dense_array(&[o1.clone(),
-                                 o2.clone(),
-                                 o3.clone(),
-                                 empty.clone(),
-                                 dense_array(&[o1, o2, o3.clone()][..]),
-                                 dense_array(&[][..]),
-                                 i(42),
-                                 s(""),
-                                 dense_array(&[][..]),
-                                 s(""),
-                                 empty,
-                                 s("bar_one"),
-                                 o3][..]));
+        decode_eq!(
+            "amf3-mixed-array.bin",
+            dense_array(
+                &[
+                    o1.clone(),
+                    o2.clone(),
+                    o3.clone(),
+                    empty.clone(),
+                    dense_array(&[o1, o2, o3.clone()][..]),
+                    dense_array(&[][..]),
+                    i(42),
+                    s(""),
+                    dense_array(&[][..]),
+                    s(""),
+                    empty,
+                    s("bar_one"),
+                    o3
+                ][..]
+            )
+        );
     }
     #[test]
     fn decodes_object() {
         let o = obj(&[("foo", s("bar"))][..]);
-        decode_eq!("amf3-object-ref.bin",
-                   dense_array(&[dense_array(&[o.clone(), o.clone()][..]),
-                                 s("bar"),
-                                 dense_array(&[o.clone(), o.clone()][..])][..]));
+        decode_eq!(
+            "amf3-object-ref.bin",
+            dense_array(
+                &[
+                    dense_array(&[o.clone(), o.clone()][..]),
+                    s("bar"),
+                    dense_array(&[o.clone(), o.clone()][..])
+                ][..]
+            )
+        );
 
-        decode_eq!("amf3-dynamic-object.bin",
-                   obj(&[("property_one", s("foo")),
-                         ("another_public_property", s("a_public_value")),
-                         ("nil_property", Value::Null)][..]));
+        decode_eq!(
+            "amf3-dynamic-object.bin",
+            obj(&[
+                ("property_one", s("foo")),
+                ("another_public_property", s("a_public_value")),
+                ("nil_property", Value::Null)
+            ][..])
+        );
 
-        decode_eq!("amf3-typed-object.bin",
-                   typed_obj("org.amf.ASClass",
-                             &[("foo", s("bar")), ("baz", Value::Null)][..]));
+        decode_eq!(
+            "amf3-typed-object.bin",
+            typed_obj(
+                "org.amf.ASClass",
+                &[("foo", s("bar")), ("baz", Value::Null)][..]
+            )
+        );
 
-        let o = [typed_obj("org.amf.ASClass",
-                           &[("foo", s("foo")), ("baz", Value::Null)]),
-                 typed_obj("org.amf.ASClass",
-                           &[("foo", s("bar")), ("baz", Value::Null)])];
+        let o = [
+            typed_obj(
+                "org.amf.ASClass",
+                &[("foo", s("foo")), ("baz", Value::Null)],
+            ),
+            typed_obj(
+                "org.amf.ASClass",
+                &[("foo", s("bar")), ("baz", Value::Null)],
+            ),
+        ];
         decode_eq!("amf3-trait-ref.bin", dense_array(&o[..]));
 
-        decode_eq!("amf3-hash.bin",
-                   obj(&[("foo", s("bar")), ("answer", i(42))][..]));
+        decode_eq!(
+            "amf3-hash.bin",
+            obj(&[("foo", s("bar")), ("answer", i(42))][..])
+        );
 
-        assert_eq!(decode!("amf3-externalizable.bin"),
-                   Err(DecodeError::ExternalizableType { name: "ExternalizableTest".to_string() }));
-        assert_eq!(decode!("amf3-array-collection.bin"),
-                   Err(DecodeError::ExternalizableType {
-                       name: "flex.messaging.io.ArrayCollection".to_string(),
-                   }));
+        assert_eq!(
+            decode!("amf3-externalizable.bin"),
+            Err(DecodeError::ExternalizableType {
+                name: "ExternalizableTest".to_string()
+            })
+        );
+        assert_eq!(
+            decode!("amf3-array-collection.bin"),
+            Err(DecodeError::ExternalizableType {
+                name: "flex.messaging.io.ArrayCollection".to_string(),
+            })
+        );
     }
     #[test]
     fn decodes_xml_doc() {
-        decode_eq!("amf3-xml-doc.bin",
-                   Value::XmlDocument("<parent><child prop=\"test\" /></parent>".to_string()));
+        decode_eq!(
+            "amf3-xml-doc.bin",
+            Value::XmlDocument("<parent><child prop=\"test\" /></parent>".to_string())
+        );
     }
     #[test]
     fn decodes_xml() {
@@ -507,76 +584,120 @@ mod test {
     }
     #[test]
     fn decodes_byte_array() {
-        decode_eq!("amf3-byte-array.bin",
-                   Value::ByteArray(vec![0, 3, 227, 129, 147, 227, 130, 140, 116, 101, 115, 116,
-                                         64]));
+        decode_eq!(
+            "amf3-byte-array.bin",
+            Value::ByteArray(vec![
+                0, 3, 227, 129, 147, 227, 130, 140, 116, 101, 115, 116, 64
+            ])
+        );
 
         let b = Value::ByteArray("ASDF".as_bytes().iter().cloned().collect());
         decode_eq!("amf3-byte-array-ref.bin", dense_array(&[b.clone(), b][..]));
     }
     #[test]
     fn decodes_date() {
-        let d = Value::Date { unix_time: time::Duration::from_secs(0) };
+        let d = Value::Date {
+            unix_time: time::Duration::from_secs(0),
+        };
         decode_eq!("amf3-date.bin", d);
         decode_eq!("amf3-date-ref.bin", dense_array(&[d.clone(), d][..]));
     }
     #[test]
     fn decodes_dictionary() {
-        let entries = vec![(s("bar"), s("asdf1")),
-                           (typed_obj("org.amf.ASClass",
-                                      &[("foo", s("baz")), ("baz", Value::Null)][..]),
-                            s("asdf2"))];
+        let entries = vec![
+            (s("bar"), s("asdf1")),
+            (
+                typed_obj(
+                    "org.amf.ASClass",
+                    &[("foo", s("baz")), ("baz", Value::Null)][..],
+                ),
+                s("asdf2"),
+            ),
+        ];
         decode_eq!("amf3-dictionary.bin", dic(&entries));
         decode_eq!("amf3-empty-dictionary.bin", dic(&[][..]));
     }
     #[test]
     fn decodes_vector() {
-        decode_eq!("amf3-vector-int.bin",
-                   Value::IntVector {
-                       is_fixed: false,
-                       entries: vec![4, -20, 12],
-                   });
+        decode_eq!(
+            "amf3-vector-int.bin",
+            Value::IntVector {
+                is_fixed: false,
+                entries: vec![4, -20, 12],
+            }
+        );
 
-        decode_eq!("amf3-vector-uint.bin",
-                   Value::UintVector {
-                       is_fixed: false,
-                       entries: vec![4, 20, 12],
-                   });
+        decode_eq!(
+            "amf3-vector-uint.bin",
+            Value::UintVector {
+                is_fixed: false,
+                entries: vec![4, 20, 12],
+            }
+        );
 
-        decode_eq!("amf3-vector-double.bin",
-                   Value::DoubleVector {
-                       is_fixed: false,
-                       entries: vec![4.3, -20.6],
-                   });
+        decode_eq!(
+            "amf3-vector-double.bin",
+            Value::DoubleVector {
+                is_fixed: false,
+                entries: vec![4.3, -20.6],
+            }
+        );
 
         let objects = vec![
-            typed_obj("org.amf.ASClass", &[("foo", s("foo")), ("baz", Value::Null)][..]),
-            typed_obj("org.amf.ASClass", &[("foo", s("bar")), ("baz", Value::Null)][..]),
-            typed_obj("org.amf.ASClass", &[("foo", s("baz")), ("baz", Value::Null)][..]),
+            typed_obj(
+                "org.amf.ASClass",
+                &[("foo", s("foo")), ("baz", Value::Null)][..],
+            ),
+            typed_obj(
+                "org.amf.ASClass",
+                &[("foo", s("bar")), ("baz", Value::Null)][..],
+            ),
+            typed_obj(
+                "org.amf.ASClass",
+                &[("foo", s("baz")), ("baz", Value::Null)][..],
+            ),
         ];
-        decode_eq!("amf3-vector-object.bin",
-                   Value::ObjectVector {
-                       class_name: Some("org.amf.ASClass".to_string()),
-                       is_fixed: false,
-                       entries: objects,
-                   });
+        decode_eq!(
+            "amf3-vector-object.bin",
+            Value::ObjectVector {
+                class_name: Some("org.amf.ASClass".to_string()),
+                is_fixed: false,
+                entries: objects,
+            }
+        );
     }
     #[test]
     fn other_errors() {
-        assert_eq!(decode!("amf3-graph-member.bin"),
-                   Err(DecodeError::CircularReference { index: 0 }));
-        assert_eq!(decode!("amf3-bad-object-ref.bin"),
-                   Err(DecodeError::OutOfRangeReference { index: 10 }));
-        assert_eq!(decode!("amf3-bad-trait-ref.bin"),
-                   Err(DecodeError::OutOfRangeReference { index: 4 }));
-        assert_eq!(decode!("amf3-bad-string-ref.bin"),
-                   Err(DecodeError::OutOfRangeReference { index: 8 }));
-        assert_eq!(decode!("amf3-unknown-marker.bin"),
-                   Err(DecodeError::Unknown { marker: 123 }));
-        assert_eq!(decode!("amf3-date-invalid-millis.bin"),
-                   Err(DecodeError::InvalidDate { millis: f64::INFINITY }));
-        assert_eq!(decode!("amf3-date-minus-millis.bin"),
-                   Err(DecodeError::InvalidDate { millis: -1.0 }));
+        assert_eq!(
+            decode!("amf3-graph-member.bin"),
+            Err(DecodeError::CircularReference { index: 0 })
+        );
+        assert_eq!(
+            decode!("amf3-bad-object-ref.bin"),
+            Err(DecodeError::OutOfRangeReference { index: 10 })
+        );
+        assert_eq!(
+            decode!("amf3-bad-trait-ref.bin"),
+            Err(DecodeError::OutOfRangeReference { index: 4 })
+        );
+        assert_eq!(
+            decode!("amf3-bad-string-ref.bin"),
+            Err(DecodeError::OutOfRangeReference { index: 8 })
+        );
+        assert_eq!(
+            decode!("amf3-unknown-marker.bin"),
+            Err(DecodeError::Unknown { marker: 123 })
+        );
+        assert_eq!(
+            decode!("amf3-date-invalid-millis.bin"),
+            Err(DecodeError::InvalidDate {
+                millis: f64::INFINITY
+            })
+        );
+        assert_eq!(
+            decode!("amf3-date-minus-millis.bin"),
+            Err(DecodeError::InvalidDate { millis: -1.0 })
+        );
         decode_unexpected_eof!("amf3-empty.bin");
         decode_unexpected_eof!("amf3-double-partial.bin");
         decode_unexpected_eof!("amf3-date-partial.bin");
@@ -610,12 +731,11 @@ mod test {
     fn dic(entries: &[(Value, Value)]) -> Value {
         Value::Dictionary {
             is_weak: false,
-            entries: entries.iter()
-                .map(|e| {
-                    Pair {
-                        key: e.0.clone(),
-                        value: e.1.clone(),
-                    }
+            entries: entries
+                .iter()
+                .map(|e| Pair {
+                    key: e.0.clone(),
+                    value: e.1.clone(),
                 })
                 .collect(),
         }
@@ -624,12 +744,11 @@ mod test {
         Value::Object {
             class_name: None,
             sealed_count: 0,
-            entries: entries.iter()
-                .map(|e| {
-                    Pair {
-                        key: e.0.to_string(),
-                        value: e.1.clone(),
-                    }
+            entries: entries
+                .iter()
+                .map(|e| Pair {
+                    key: e.0.to_string(),
+                    value: e.1.clone(),
                 })
                 .collect(),
         }
@@ -638,12 +757,11 @@ mod test {
         Value::Object {
             class_name: Some(class.to_string()),
             sealed_count: entries.len(),
-            entries: entries.iter()
-                .map(|e| {
-                    Pair {
-                        key: e.0.to_string(),
-                        value: e.1.clone(),
-                    }
+            entries: entries
+                .iter()
+                .map(|e| Pair {
+                    key: e.0.to_string(),
+                    value: e.1.clone(),
                 })
                 .collect(),
         }

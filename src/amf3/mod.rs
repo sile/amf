@@ -16,8 +16,8 @@
 use std::io;
 use std::time;
 
-use Pair;
 use DecodeResult;
+use Pair;
 
 pub use self::decode::Decoder;
 pub use self::encode::Encoder;
@@ -196,14 +196,16 @@ impl Value {
     /// for the sake of simplicity of the resulting value representation.
     /// And circular reference are unsupported (i.e., those are treated as errors).
     pub fn read_from<R>(reader: R) -> DecodeResult<Self>
-        where R: io::Read
+    where
+        R: io::Read,
     {
         Decoder::new(reader).decode()
     }
 
     /// Writes the AMF3 encoded bytes of this value to `writer`.
     pub fn write_to<W>(&self, writer: W) -> io::Result<()>
-        where W: io::Write
+    where
+        W: io::Write,
     {
         Encoder::new(writer).encode(self)
     }
@@ -234,9 +236,9 @@ impl Value {
             Value::IntVector { entries, .. } => {
                 Ok(Box::new(entries.into_iter().map(Value::Integer)))
             }
-            Value::UintVector { entries, .. } => {
-                Ok(Box::new(entries.into_iter().map(|n| Value::Double(n as f64))))
-            }
+            Value::UintVector { entries, .. } => Ok(Box::new(
+                entries.into_iter().map(|n| Value::Double(n as f64)),
+            )),
             Value::DoubleVector { entries, .. } => {
                 Ok(Box::new(entries.into_iter().map(Value::Double)))
             }
@@ -248,9 +250,9 @@ impl Value {
     /// Tries to convert the value as an iterator of the contained pairs.
     pub fn try_into_pairs(self) -> Result<Box<Iterator<Item = (String, Value)>>, Self> {
         match self {
-            Value::Array { assoc_entries, .. } => {
-                Ok(Box::new(assoc_entries.into_iter().map(|p| (p.key, p.value))))
-            }
+            Value::Array { assoc_entries, .. } => Ok(Box::new(
+                assoc_entries.into_iter().map(|p| (p.key, p.value)),
+            )),
             Value::Object { entries, .. } => {
                 Ok(Box::new(entries.into_iter().map(|p| (p.key, p.value))))
             }
