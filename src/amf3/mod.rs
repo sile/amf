@@ -228,7 +228,7 @@ impl Value {
     }
 
     /// Tries to convert the value as an iterator of the contained values.
-    pub fn try_into_values(self) -> Result<Box<Iterator<Item = Value>>, Self> {
+    pub fn try_into_values(self) -> Result<Box<dyn Iterator<Item = Value>>, Self> {
         match self {
             Value::Array { dense_entries, .. } => Ok(Box::new(dense_entries.into_iter())),
             Value::IntVector { entries, .. } => {
@@ -246,7 +246,7 @@ impl Value {
     }
 
     /// Tries to convert the value as an iterator of the contained pairs.
-    pub fn try_into_pairs(self) -> Result<Box<Iterator<Item = (String, Value)>>, Self> {
+    pub fn try_into_pairs(self) -> Result<Box<dyn Iterator<Item = (String, Value)>>, Self> {
         match self {
             Value::Array { assoc_entries, .. } => {
                 Ok(Box::new(assoc_entries.into_iter().map(|p| (p.key, p.value))))
