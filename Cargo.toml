@@ -11,4 +11,4 @@ keywords = ["AMF"]
 license = "MIT"
 
 [dependencies]
-byteorder = "0.5"
+byteorder = "1"
