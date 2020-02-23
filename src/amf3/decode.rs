@@ -215,6 +215,10 @@ impl<R> Decoder<R>
         })
     }
 
+    /// Decode an AMF3 string.
+    ///
+    /// Use this if you need to decode an AMF3 string outside of value context.
+    /// An example for this is reading keys in Local Shared Object file.
     pub fn decode_utf8(&mut self) -> DecodeResult<String> {
         match try!(self.decode_size_or_index()) {
             SizeOrIndex::Size(len) => {
