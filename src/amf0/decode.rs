@@ -183,6 +183,7 @@ where
 
 #[cfg(test)]
 mod tests {
+    #![allow(clippy::approx_constant)]
     use super::super::marker;
     use super::super::Value;
     use crate::amf3;
@@ -364,7 +365,7 @@ mod tests {
     #[test]
     fn decodes_reference() {
         let object = obj(None, &[("foo", s("baz")), ("bar", n(3.14))][..]);
-        let expected = obj(None, &[("0", object.clone()), ("1", object.clone())][..]);
+        let expected = obj(None, &[("0", object.clone()), ("1", object)][..]);
         decode_eq!("amf0-ref-test.bin", expected);
         decode_unexpected_eof!("amf0-reference-partial.bin");
 
@@ -382,13 +383,13 @@ mod tests {
         decode_eq!(
             "amf0-date.bin",
             Value::Date {
-                unix_time: time::Duration::from_millis(1590796800_000)
+                unix_time: time::Duration::from_millis(1_590_796_800_000)
             }
         );
         decode_eq!(
             "amf0-time.bin",
             Value::Date {
-                unix_time: time::Duration::from_millis(1045112400_000)
+                unix_time: time::Duration::from_millis(1_045_112_400_000)
             }
         );
         decode_unexpected_eof!("amf0-date-partial.bin");

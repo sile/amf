@@ -148,6 +148,7 @@ where
 
 #[cfg(test)]
 mod tests {
+    #![allow(clippy::approx_constant)]
     use super::super::Value;
     use crate::amf3;
     use crate::Pair;
@@ -240,13 +241,13 @@ mod tests {
     fn encodes_date() {
         encode_eq!(
             Value::Date {
-                unix_time: time::Duration::from_millis(1590796800_000)
+                unix_time: time::Duration::from_millis(1_590_796_800_000)
             },
             "amf0-date.bin"
         );
         encode_eq!(
             Value::Date {
-                unix_time: time::Duration::from_millis(1045112400_000)
+                unix_time: time::Duration::from_millis(1_045_112_400_000)
             },
             "amf0-time.bin"
         );
