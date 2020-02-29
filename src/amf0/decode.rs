@@ -33,8 +33,17 @@ where
 
     /// Decodes a AMF0 value.
     pub fn decode(&mut self) -> DecodeResult<Value> {
-        self.complexes.clear();
         self.decode_value()
+    }
+
+    /// Clear the reference table of this decoder.
+    ///
+    /// > Note that object reference indices are local to each message body.
+    /// > Serializers and deserializers must reset reference indices to 0 each time a new message is processed.
+    /// >
+    /// > [AMF 0 Specification: 4.1.3 AMF Message](http://download.macromedia.com/pub/labs/amf/amf0_spec_121207.pdf)
+    pub fn clear_reference_table(&mut self) {
+        self.complexes.clear();
     }
 
     fn decode_value(&mut self) -> DecodeResult<Value> {

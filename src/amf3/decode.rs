@@ -54,10 +54,19 @@ where
 
     /// Decodes a AMF3 value.
     pub fn decode(&mut self) -> DecodeResult<Value> {
+        self.decode_value()
+    }
+
+    /// Clear the reference tables of this decoder.
+    ///
+    /// > Similar to AFM 0, AMF 3 object reference tables, object trait reference tables
+    /// > and string reference tables must be reset each time a new context header or message is processed.
+    /// >
+    /// > [AMF 3 Specification: 4.1 NetConnection and AMF 3](https://www.adobe.com/content/dam/acom/en/devnet/pdf/amf-file-format-spec.pdf)
+    pub fn clear_reference_table(&mut self) {
         self.traits.clear();
         self.strings.clear();
         self.complexes.clear();
-        self.decode_value()
     }
 
     fn decode_value(&mut self) -> DecodeResult<Value> {
@@ -388,7 +397,10 @@ mod tests {
         decode_eq!("amf3-min.bin", Value::Integer(-0x1000_0000));
         decode_eq!("amf3-max.bin", Value::Integer(0x0FFF_FFFF));
         decode_eq!("amf3-integer-2byte.bin", Value::Integer(0b1000_0000));
-        decode_eq!("amf3-integer-3byte.bin", Value::Integer(0b100_0000_0000_0000));
+        decode_eq!(
+            "amf3-integer-3byte.bin",
+            Value::Integer(0b100_0000_0000_0000)
+        );
     }
     #[test]
     fn decodes_double() {
