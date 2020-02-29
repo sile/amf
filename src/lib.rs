@@ -16,7 +16,7 @@
 //!
 //! # References
 //! - [AMF0 Specification](http://download.macromedia.com/pub/labs/amf/amf0_spec_121207.pdf)
-//! - [AMF3 Specification](http://download.macromedia.com/pub/labs/amf/amf3_spec_121207.pdf)
+//! - [AMF3 Specification](https://www.adobe.com/content/dam/acom/en/devnet/pdf/amf-file-format-spec.pdf)
 #![warn(missing_docs)]
 extern crate byteorder;
 

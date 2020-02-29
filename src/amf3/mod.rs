@@ -1,4 +1,4 @@
-//! An [AMF3](http://download.macromedia.com/pub/labs/amf/amf3_spec_121207.pdf) implementation.
+//! An [AMF3](https://www.adobe.com/content/dam/acom/en/devnet/pdf/amf-file-format-spec.pdf) implementation.
 //!
 //! # Examples
 //! ```
@@ -62,45 +62,45 @@ mod marker {
 #[derive(Debug, Clone, PartialEq, PartialOrd)]
 pub enum Value {
     /// See [3.2 undefined Type]
-    /// (http://download.macromedia.com/pub/labs/amf/amf3_spec_121207.pdf#page=6&zoom=auto,88,264).
+    /// (https://www.adobe.com/content/dam/acom/en/devnet/pdf/amf-file-format-spec.pdf#page=6&zoom=auto,88,264).
     Undefined,
 
     /// See [3.3 null Type]
-    /// (http://download.macromedia.com/pub/labs/amf/amf3_spec_121207.pdf#page=6&zoom=auto,88,139).
+    /// (https://www.adobe.com/content/dam/acom/en/devnet/pdf/amf-file-format-spec.pdf#page=6&zoom=auto,88,139).
     Null,
 
     /// See [3.4 false Type]
-    /// (http://download.macromedia.com/pub/labs/amf/amf3_spec_121207.pdf#page=7&zoom=auto,88,694)
+    /// (https://www.adobe.com/content/dam/acom/en/devnet/pdf/amf-file-format-spec.pdf#page=7&zoom=auto,88,694)
     /// and
     /// [3.5 true Type]
-    /// (http://download.macromedia.com/pub/labs/amf/amf3_spec_121207.pdf#page=7&zoom=auto,88,596).
+    /// (https://www.adobe.com/content/dam/acom/en/devnet/pdf/amf-file-format-spec.pdf#page=7&zoom=auto,88,596).
     Boolean(bool),
 
     /// See [3.6 integer Type]
-    /// (http://download.macromedia.com/pub/labs/amf/amf3_spec_121207.pdf#page=7&zoom=auto,88,499).
+    /// (https://www.adobe.com/content/dam/acom/en/devnet/pdf/amf-file-format-spec.pdf#page=7&zoom=auto,88,499).
     Integer(i32),
 
     /// See [3.7 double Type]
-    /// (http://download.macromedia.com/pub/labs/amf/amf3_spec_121207.pdf#page=7&zoom=auto,88,321).
+    /// (https://www.adobe.com/content/dam/acom/en/devnet/pdf/amf-file-format-spec.pdf#page=7&zoom=auto,88,321).
     Double(f64),
 
     /// See [3.8 String Type]
-    /// (http://download.macromedia.com/pub/labs/amf/amf3_spec_121207.pdf#page=7&zoom=auto,88,196).
+    /// (https://www.adobe.com/content/dam/acom/en/devnet/pdf/amf-file-format-spec.pdf#page=7&zoom=auto,88,196).
     String(String),
 
     /// See [3.9 XMLDocument Type]
-    /// (http://download.macromedia.com/pub/labs/amf/amf3_spec_121207.pdf#page=8&zoom=auto,88,639).
+    /// (https://www.adobe.com/content/dam/acom/en/devnet/pdf/amf-file-format-spec.pdf#page=8&zoom=auto,88,639).
     XmlDocument(String),
 
     /// See [3.10 Date Type]
-    /// (http://download.macromedia.com/pub/labs/amf/amf3_spec_121207.pdf#page=8&zoom=auto,88,316).
+    /// (https://www.adobe.com/content/dam/acom/en/devnet/pdf/amf-file-format-spec.pdf#page=8&zoom=auto,88,316).
     Date {
         /// Unix timestamp with milliseconds precision.
         unix_time: time::Duration,
     },
 
     /// See [3.11 Array Type]
-    /// (http://download.macromedia.com/pub/labs/amf/amf3_spec_121207.pdf#page=9&zoom=auto,88,720).
+    /// (https://www.adobe.com/content/dam/acom/en/devnet/pdf/amf-file-format-spec.pdf#page=9&zoom=auto,88,720).
     Array {
         /// Entries of the associative part of the array.
         assoc_entries: Vec<Pair<String, Value>>,
@@ -110,7 +110,7 @@ pub enum Value {
     },
 
     /// See [3.12 Object Type]
-    /// (http://download.macromedia.com/pub/labs/amf/amf3_spec_121207.pdf#page=9&zoom=auto,88,275).
+    /// (https://www.adobe.com/content/dam/acom/en/devnet/pdf/amf-file-format-spec.pdf#page=9&zoom=auto,88,275).
     Object {
         /// The class name of the object.
         /// `None` means it is an anonymous object.
@@ -126,15 +126,15 @@ pub enum Value {
     },
 
     /// See [3.13 XML Type]
-    /// (http://download.macromedia.com/pub/labs/amf/amf3_spec_121207.pdf#page=11&zoom=auto,88,360).
+    /// (https://www.adobe.com/content/dam/acom/en/devnet/pdf/amf-file-format-spec.pdf#page=11&zoom=auto,88,360).
     Xml(String),
 
     /// See [3.14 ByteArray Type]
-    /// (http://download.macromedia.com/pub/labs/amf/amf3_spec_121207.pdf#page=11&zoom=auto,88,167).
+    /// (https://www.adobe.com/content/dam/acom/en/devnet/pdf/amf-file-format-spec.pdf#page=11&zoom=auto,88,167).
     ByteArray(Vec<u8>),
 
     /// See [3.15 Vector Type]
-    /// (http://download.macromedia.com/pub/labs/amf/amf3_spec_121207.pdf#page=12&zoom=auto,88,534).
+    /// (https://www.adobe.com/content/dam/acom/en/devnet/pdf/amf-file-format-spec.pdf#page=12&zoom=auto,88,534).
     IntVector {
         /// If `true`, this is a fixed-length vector.
         is_fixed: bool,
@@ -144,7 +144,7 @@ pub enum Value {
     },
 
     /// See [3.15 Vector Type]
-    /// (http://download.macromedia.com/pub/labs/amf/amf3_spec_121207.pdf#page=12&zoom=auto,88,534).
+    /// (https://www.adobe.com/content/dam/acom/en/devnet/pdf/amf-file-format-spec.pdf#page=12&zoom=auto,88,534).
     UintVector {
         /// If `true`, this is a fixed-length vector.
         is_fixed: bool,
@@ -154,7 +154,7 @@ pub enum Value {
     },
 
     /// See [3.15 Vector Type]
-    /// (http://download.macromedia.com/pub/labs/amf/amf3_spec_121207.pdf#page=12&zoom=auto,88,534).
+    /// (https://www.adobe.com/content/dam/acom/en/devnet/pdf/amf-file-format-spec.pdf#page=12&zoom=auto,88,534).
     DoubleVector {
         /// If `true`, this is a fixed-length vector.
         is_fixed: bool,
@@ -164,7 +164,7 @@ pub enum Value {
     },
 
     /// See [3.15 Vector Type]
-    /// (http://download.macromedia.com/pub/labs/amf/amf3_spec_121207.pdf#page=12&zoom=auto,88,534).
+    /// (https://www.adobe.com/content/dam/acom/en/devnet/pdf/amf-file-format-spec.pdf#page=12&zoom=auto,88,534).
     ObjectVector {
         /// The base type name of entries in the vector.
         /// `None` means it is the ANY type.
@@ -178,7 +178,7 @@ pub enum Value {
     },
 
     /// See [3.16 Dictionary Type]
-    /// (http://download.macromedia.com/pub/labs/amf/amf3_spec_121207.pdf#page=13&zoom=auto,88,601).
+    /// (https://www.adobe.com/content/dam/acom/en/devnet/pdf/amf-file-format-spec.pdf#page=13&zoom=auto,88,601).
     Dictionary {
         /// If `true`, the keys of `entries` are weakly referenced.
         is_weak: bool,
