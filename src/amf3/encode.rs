@@ -15,8 +15,12 @@ impl<W> Encoder<W> {
     pub fn into_inner(self) -> W {
         self.inner
     }
-    /// Returns a reference to the underlying writer.
-    pub fn inner(&mut self) -> &mut W {
+    /// Returns an immutable reference to the underlying writer.
+    pub fn inner(&self) -> &W {
+        &self.inner
+    }
+    /// Returns a mutable reference to the underlying writer.
+    pub fn inner_mut(&mut self) -> &mut W {
         &mut self.inner
     }
 }
