@@ -274,7 +274,7 @@ where
     }
     /// Encode an AMF3 string.
     ///
-    /// Use this if you need to decode an AMF3 string outside of value context.
+    /// Use this if you need to encode an AMF3 string outside of value context.
     /// An example of this is writing keys in Local Shared Object file.
     pub fn encode_utf8(&mut self, s: &str) -> io::Result<()> {
         self.encode_size(s.len())?;
