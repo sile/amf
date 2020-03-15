@@ -15,6 +15,10 @@ impl<W> Encoder<W> {
     pub fn into_inner(self) -> W {
         self.inner
     }
+    /// Returns a reference to the underlying writer.
+    pub fn inner(&mut self) -> &mut W {
+        &mut self.inner
+    }
 }
 impl<W> Encoder<W>
 where
@@ -268,7 +272,11 @@ where
         }
         Ok(())
     }
-    fn encode_utf8(&mut self, s: &str) -> io::Result<()> {
+    /// Encode an AMF3 string.
+    ///
+    /// Use this if you need to decode an AMF3 string outside of value context.
+    /// An example of this is writing keys in Local Shared Object file.
+    pub fn encode_utf8(&mut self, s: &str) -> io::Result<()> {
         self.encode_size(s.len())?;
         self.inner.write_all(s.as_bytes())?;
         Ok(())
