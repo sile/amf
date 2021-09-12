@@ -58,10 +58,10 @@ where
     fn encode_string(&mut self, s: &str) -> io::Result<()> {
         if s.len() <= 0xFFFF {
             self.inner.write_u8(marker::STRING)?;
-            self.write_str_u16(&s)?;
+            self.write_str_u16(s)?;
         } else {
             self.inner.write_u8(marker::LONG_STRING)?;
-            self.write_str_u32(&s)?;
+            self.write_str_u32(s)?;
         }
         Ok(())
     }

@@ -200,7 +200,7 @@ where
         self.inner.write_u8(marker::VECTOR_OBJECT)?;
         self.encode_size(vec.len())?;
         self.inner.write_u8(is_fixed as u8)?;
-        self.encode_utf8(class_name.as_ref().map_or("*", |s| &s))?;
+        self.encode_utf8(class_name.as_ref().map_or("*", |s| s))?;
         for x in vec {
             self.encode(x)?;
         }
@@ -234,7 +234,7 @@ where
             (sealed_count << 3) | (is_dynamic << 2) | (is_externalizable << 1) | not_reference;
         self.encode_size(u28)?;
 
-        let class_name = class_name.as_ref().map_or("", |s| &s);
+        let class_name = class_name.as_ref().map_or("", |s| s);
         self.encode_utf8(class_name)?;
         for e in entries.iter().take(sealed_count) {
             self.encode_utf8(&e.key)?;
