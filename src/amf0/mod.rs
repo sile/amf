@@ -118,6 +118,11 @@ pub enum Value {
     Date {
         /// Unix timestamp with milliseconds precision.
         unix_time: time::Duration,
+
+        /// Time zone offset.
+        ///
+        /// Note that this is a reserved field and the value should be zero.
+        time_zone: i16,
     },
 
     /// See [2.17 XML Document Type]
