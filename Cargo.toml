@@ -12,8 +12,7 @@ license = "MIT"
 edition = "2018"
 
 [badges]
-travis-ci = {repository = "sile/amf"}
-codecov = {repository = "sile/amf"}
+coveralls = {repository = "sile/amf"}
 
 [dependencies]
 byteorder = "1"

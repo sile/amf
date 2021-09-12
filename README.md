@@ -3,8 +3,8 @@ amf
 
 [![amf](https://img.shields.io/crates/v/amf.svg)](https://crates.io/crates/amf)
 [![Documentation](https://docs.rs/amf/badge.svg)](https://docs.rs/amf)
-[![Build Status](https://travis-ci.org/sile/amf.svg?branch=master)](https://travis-ci.org/sile/amf)
-[![Code Coverage](https://codecov.io/gh/sile/amf/branch/master/graph/badge.svg)](https://codecov.io/gh/sile/amf/branch/master)
+[![Actions Status](https://github.com/sile/amf/workflows/CI/badge.svg)](https://github.com/sile/amf/actions)
+[![Coverage Status](https://coveralls.io/repos/github/sile/amf/badge.svg?branch=main)](https://coveralls.io/github/sile/amf?branch=main)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 A Rust Implementation of AMF (Action Media Format).
