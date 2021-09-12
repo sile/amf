@@ -123,13 +123,12 @@ where
     fn decode_date(&mut self) -> DecodeResult<Value> {
         let millis = self.inner.read_f64::<BigEndian>()?;
         let time_zone = self.inner.read_i16::<BigEndian>()?;
-        if time_zone != 0 {
-            Err(DecodeError::NonZeroTimeZone { offset: time_zone })
-        } else if !(millis.is_finite() && millis.is_sign_positive()) {
+        if !(millis.is_finite() && millis.is_sign_positive()) {
             Err(DecodeError::InvalidDate { millis })
         } else {
             Ok(Value::Date {
                 unix_time: time::Duration::from_millis(millis as u64),
+                time_zone,
             })
         }
     }
@@ -392,13 +391,15 @@ mod tests {
         decode_eq!(
             "amf0-date.bin",
             Value::Date {
-                unix_time: time::Duration::from_millis(1_590_796_800_000)
+                unix_time: time::Duration::from_millis(1_590_796_800_000),
+                time_zone: 0
             }
         );
         decode_eq!(
             "amf0-time.bin",
             Value::Date {
-                unix_time: time::Duration::from_millis(1_045_112_400_000)
+                unix_time: time::Duration::from_millis(1_045_112_400_000),
+                time_zone: 0
             }
         );
         decode_unexpected_eof!("amf0-date-partial.bin");

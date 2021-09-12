@@ -39,7 +39,10 @@ where
             Value::Undefined => self.encode_undefined(),
             Value::EcmaArray { ref entries } => self.encode_ecma_array(entries),
             Value::Array { ref entries } => self.encode_strict_array(entries),
-            Value::Date { unix_time } => self.encode_date(unix_time),
+            Value::Date {
+                unix_time,
+                time_zone,
+            } => self.encode_date(unix_time, time_zone),
             Value::XmlDocument(ref x) => self.encode_xml_document(x),
             Value::AvmPlus(ref x) => self.encode_avmplus(x),
         }
@@ -104,12 +107,12 @@ where
         }
         Ok(())
     }
-    fn encode_date(&mut self, unix_time: time::Duration) -> io::Result<()> {
+    fn encode_date(&mut self, unix_time: time::Duration, time_zone: i16) -> io::Result<()> {
         let millis = unix_time.as_secs() * 1000 + (unix_time.subsec_nanos() as u64) / 1_000_000;
 
         self.inner.write_u8(marker::DATE)?;
         self.inner.write_f64::<BigEndian>(millis as f64)?;
-        self.inner.write_i16::<BigEndian>(0)?;
+        self.inner.write_i16::<BigEndian>(time_zone)?;
         Ok(())
     }
     fn encode_xml_document(&mut self, xml: &str) -> io::Result<()> {
@@ -241,13 +244,15 @@ mod tests {
     fn encodes_date() {
         encode_eq!(
             Value::Date {
-                unix_time: time::Duration::from_millis(1_590_796_800_000)
+                unix_time: time::Duration::from_millis(1_590_796_800_000),
+                time_zone: 0
             },
             "amf0-date.bin"
         );
         encode_eq!(
             Value::Date {
-                unix_time: time::Duration::from_millis(1_045_112_400_000)
+                unix_time: time::Duration::from_millis(1_045_112_400_000),
+                time_zone: 0
             },
             "amf0-time.bin"
         );
