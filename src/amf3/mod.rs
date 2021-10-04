@@ -188,6 +188,11 @@ pub enum Value {
     },
 }
 impl Value {
+    /// Calculates the length of an encoded value in bytes.
+    pub fn encoded_len(&self) -> usize {
+        encode::encoded_len(&self)
+    }
+
     /// Reads an AMF3 encoded `Value` from `reader`.
     ///
     /// Note that reference objects are copied in the decoding phase

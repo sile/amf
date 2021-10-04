@@ -16,3 +16,11 @@ coveralls = {repository = "sile/amf"}
 
 [dependencies]
 byteorder = "1"
+
+
+[dev-dependencies]
+criterion = "0.3"
+
+[[bench]]
+name = "alloc"
+harness = false

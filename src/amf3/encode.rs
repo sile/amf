@@ -5,6 +5,181 @@ use byteorder::{BigEndian, WriteBytesExt};
 use std::io;
 use std::time;
 
+pub fn encoded_len(value: &Value) -> usize {
+    match *value {
+        Value::Undefined => 1,
+        Value::Null => 1,
+        Value::Boolean(_) => 1,
+        Value::Integer(x) => encoded_integer_len(x),
+        Value::Double(_) => 9,
+        Value::String(ref x) => encoded_string_len(x),
+        Value::XmlDocument(ref x) => encoded_string_len(x),
+        Value::Date { unix_time: _ } => encoded_size_len(0) + 9,
+        Value::Array {
+            ref assoc_entries,
+            ref dense_entries,
+        } => encoded_array_len(assoc_entries, dense_entries),
+        Value::Object {
+            ref class_name,
+            sealed_count,
+            ref entries,
+        } => encoded_object_len(class_name, sealed_count, entries),
+        Value::Xml(ref x) => encoded_string_len(x),
+        Value::ByteArray(ref x) => encoded_byte_array_len(x),
+        Value::IntVector {
+            is_fixed: _,
+            ref entries,
+        } => encoded_int_vector_len(entries),
+        Value::UintVector {
+            is_fixed: _,
+            ref entries,
+        } => encoded_uint_vector_len(entries),
+        Value::DoubleVector {
+            is_fixed: _,
+            ref entries,
+        } => encoded_double_vector_len(entries),
+        Value::ObjectVector {
+            ref class_name,
+            is_fixed: _,
+            ref entries,
+        } => encoded_object_vector_len(class_name, entries),
+        Value::Dictionary {
+            is_weak: _,
+            ref entries,
+        } => encoded_dictionary_len(entries),
+    }
+}
+
+fn encoded_object_vector_len(class_name: &Option<String>, vec: &[Value]) -> usize {
+    let mut len = 1 + encoded_size_len(vec.len()) + 1;
+    len += encoded_utf8_len(class_name.as_ref().map_or("*", |s| s));
+    for x in vec {
+        len += encoded_len(x);
+    }
+    len
+}
+fn encoded_dictionary_len(entries: &[Pair<Value, Value>]) -> usize {
+    let mut len = 1 + encoded_size_len(entries.len()) + 1;
+    for e in entries {
+        len += encoded_len(&e.key);
+        len += encoded_len(&e.value);
+    }
+    len
+}
+
+fn encoded_object_len(
+    class_name: &Option<String>,
+    sealed_count: usize,
+    entries: &[Pair<String, Value>],
+) -> usize {
+    let mut len = 1 + encoded_trait_len(class_name, sealed_count, entries);
+
+    for e in entries.iter().take(sealed_count) {
+        len += encoded_len(&e.value);
+    }
+    if entries.len() > sealed_count {
+        len += encoded_pairs_len(&entries[sealed_count..]);
+    }
+    len
+}
+
+fn encoded_trait_len(
+    class_name: &Option<String>,
+    sealed_count: usize,
+    entries: &[Pair<String, Value>],
+) -> usize {
+    assert!(sealed_count <= entries.len());
+    let not_reference = 1;
+    let is_externalizable = false as usize;
+    let is_dynamic = (sealed_count < entries.len()) as usize;
+    let u28 = (sealed_count << 3) | (is_dynamic << 2) | (is_externalizable << 1) | not_reference;
+
+    let mut len = encoded_size_len(u28);
+
+    let class_name = class_name.as_ref().map_or("", |s| s);
+    len += encoded_utf8_len(class_name);
+    for e in entries.iter().take(sealed_count) {
+        len += encoded_utf8_len(&e.key)
+    }
+    len
+}
+
+fn encoded_array_len(assoc: &[Pair<String, Value>], dense: &[Value]) -> usize {
+    let mut len = 1 + encoded_size_len(dense.len()) + encoded_pairs_len(assoc);
+    for d in dense {
+        len += encoded_len(d);
+    }
+
+    len
+}
+
+fn encoded_pairs_len(pairs: &[Pair<String, Value>]) -> usize {
+    let mut len = 0;
+    for p in pairs {
+        len += encoded_utf8_len(&p.key);
+        len += encoded_len(&p.value);
+    }
+    len += encoded_utf8_len("");
+    len
+}
+
+fn encoded_int_vector_len(vec: &[i32]) -> usize {
+    let len = vec.len();
+    1 + encoded_size_len(len) + 1 + len * 4
+}
+fn encoded_uint_vector_len(vec: &[u32]) -> usize {
+    let len = vec.len();
+    1 + encoded_size_len(len) + 1 + len * 4
+}
+fn encoded_double_vector_len(vec: &[f64]) -> usize {
+    let len = vec.len();
+    1 + encoded_size_len(len) + 1 + len * 8
+}
+
+fn encoded_integer_len(i: i32) -> usize {
+    let u29 = if i >= 0 {
+        i as u32
+    } else {
+        ((1 << 29) + i) as u32
+    };
+    encoded_u29_len(u29) + 1
+}
+
+fn encoded_string_len(s: &str) -> usize {
+    1 + encoded_utf8_len(s)
+}
+
+fn encoded_size_len(size: usize) -> usize {
+    assert!(size < (1 << 28));
+    let not_reference = 1;
+    encoded_u29_len(((size << 1) | not_reference) as u32)
+}
+
+fn encoded_byte_array_len(bytes: &[u8]) -> usize {
+    let len = bytes.len();
+    1 + encoded_size_len(len) + len
+}
+
+pub fn encoded_utf8_len(s: &str) -> usize {
+    let len = s.len();
+    encoded_size_len(len) + len
+}
+
+#[allow(clippy::zero_prefixed_literal, clippy::identity_op)]
+fn encoded_u29_len(u29: u32) -> usize {
+    if u29 < 0x80 {
+        1
+    } else if u29 < 0x4000 {
+        2
+    } else if u29 < 0x20_0000 {
+        3
+    } else if u29 < 0x4000_0000 {
+        4
+    } else {
+        panic!("Too large number: {}", u29);
+    }
+}
+
 /// AMF3 encoder.
 #[derive(Debug)]
 pub struct Encoder<W> {
@@ -303,10 +478,13 @@ mod tests {
 
     macro_rules! encode_eq {
         ($value:expr, $file:expr) => {{
+            let value = $value;
             let expected = include_bytes!(concat!("../testdata/", $file));
             let mut buf = Vec::new();
-            $value.write_to(&mut buf).unwrap();
+            value.write_to(&mut buf).unwrap();
             assert_eq!(buf, &expected[..]);
+            assert_eq!(buf.len(), expected.len());
+            assert_eq!(buf.len(), value.encoded_len());
         }};
     }
     macro_rules! encode_and_decode {
@@ -317,6 +495,22 @@ mod tests {
             assert_eq!(v, Value::read_from(&mut &buf[..]).unwrap());
         }};
     }
+
+    // macro_rules! encode_bench {
+    //     ($value:expr) => {{
+    //         let v = $value;
+    //         let mut buf = Vec::new();
+    //         v.write_to(&mut buf).unwrap();
+    //     }};
+    // }
+
+    // macro_rules! encode_bench_with_capacity {
+    //     ($value:expr) => {{
+    //         let v = $value;
+    //         let mut buf = Vec::with_capacity(v.encoded_len());
+    //         v.write_to(&mut buf).unwrap();
+    //     }};
+    // }
 
     #[test]
     fn encodes_undefined() {
@@ -406,6 +600,7 @@ mod tests {
             "amf3-byte-array.bin"
         );
     }
+
     #[test]
     fn encodes_date() {
         let d = Value::Date {

@@ -52,6 +52,13 @@ pub enum Value {
     Amf3(Amf3Value),
 }
 impl Value {
+    /// Calculates the length of an encoded value in bytes.
+    pub fn encoded_len(&self) -> usize {
+        match *self {
+            Value::Amf0(ref x) => x.encoded_len(),
+            Value::Amf3(ref x) => x.encoded_len(),
+        }
+    }
     /// Reads an AMF encoded `Value` from `reader`.
     ///
     /// Note that reference objects are copied in the decoding phase

@@ -6,11 +6,80 @@ use byteorder::{BigEndian, WriteBytesExt};
 use std::io;
 use std::time;
 
+// Caclulates required buffer len
+pub fn encoded_len(value: &Value) -> usize {
+    match *value {
+        Value::Number(_) => 9,
+        Value::Boolean(_) => 2,
+        Value::String(ref x) => encoded_string_len(x),
+        Value::Object {
+            ref class_name,
+            ref entries,
+        } => encoded_object_len(class_name, entries),
+        Value::Null => 1,
+        Value::Undefined => 1,
+        Value::EcmaArray { ref entries } => 5 + encoded_pairs_len(entries),
+        Value::Array { ref entries } => encoded_strict_array_len(entries),
+        Value::Date {
+            unix_time: _,
+            time_zone: _,
+        } => 11,
+        Value::XmlDocument(ref x) => 1 + encoded_string_u32_len(x),
+        Value::AvmPlus(ref x) => encoded_avmplus_len(x),
+    }
+}
+fn encoded_string_len(s: &str) -> usize {
+    if s.len() <= 0xFFFF {
+        encoded_string_u16_len(s) + 1
+    } else {
+        encoded_string_u32_len(s) + 1
+    }
+}
+
+fn encoded_avmplus_len(value: &amf3::Value) -> usize {
+    1 + value.encoded_len()
+}
+
+fn encoded_string_u16_len(s: &str) -> usize {
+    2 + s.len()
+}
+
+fn encoded_string_u32_len(s: &str) -> usize {
+    4 + s.len()
+}
+
+fn encoded_strict_array_len(entries: &[Value]) -> usize {
+    let mut result = 5;
+    for e in entries {
+        result += encoded_len(e);
+    }
+    result
+}
+
+fn encoded_object_len(class_name: &Option<String>, entries: &[Pair<String, Value>]) -> usize {
+    assert!(entries.len() <= 0xFFFF_FFFF);
+    let mut len = 1 + encoded_pairs_len(entries);
+    if let Some(class_name) = class_name.as_ref() {
+        len += encoded_string_u16_len(&class_name);
+    }
+
+    len
+}
+
+fn encoded_pairs_len(pairs: &[Pair<String, Value>]) -> usize {
+    let mut result = 3;
+    for p in pairs {
+        result += encoded_string_u16_len(&p.key) + encoded_len(&p.value);
+    }
+    result
+}
+
 /// AMF0 encoder.
 #[derive(Debug)]
 pub struct Encoder<W> {
     inner: W,
 }
+
 impl<W> Encoder<W> {
     /// Unwraps this `Encoder`, returning the underlying writer.
     pub fn into_inner(self) -> W {
@@ -161,9 +230,13 @@ mod tests {
     macro_rules! encode_eq {
         ($value:expr, $file:expr) => {{
             let expected = include_bytes!(concat!("../testdata/", $file));
+            let value = $value;
+            let encoded_len = value.encoded_len();
             let mut buf = Vec::new();
-            $value.write_to(&mut buf).unwrap();
+            value.write_to(&mut buf).unwrap();
             assert_eq!(buf, &expected[..]);
+            assert_eq!(buf.len(), expected.len());
+            assert_eq!(encoded_len, expected.len());
         }};
     }
 
