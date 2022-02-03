@@ -18,6 +18,16 @@ impl<R> Decoder<R> {
     pub fn into_inner(self) -> R {
         self.inner
     }
+
+    /// Get the reference to the underlying reader.
+    pub fn inner(&self) -> &R {
+        &self.inner
+    }
+
+    /// Get the mutable reference to the underlying reader.
+    pub fn inner_mut(&mut self) -> &mut R {
+        &mut self.inner
+    }
 }
 impl<R> Decoder<R>
 where
