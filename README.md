@@ -5,7 +5,7 @@ amf
 [![Documentation](https://docs.rs/amf/badge.svg)](https://docs.rs/amf)
 [![Actions Status](https://github.com/sile/amf/workflows/CI/badge.svg)](https://github.com/sile/amf/actions)
 [![Coverage Status](https://coveralls.io/repos/github/sile/amf/badge.svg?branch=main)](https://coveralls.io/github/sile/amf?branch=main)
-[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+![License](https://img.shields.io/crates/l/amf)
 
 A Rust Implementation of AMF (Action Media Format).
 
