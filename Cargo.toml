@@ -9,7 +9,7 @@ repository = "https://github.com/sile/amf"
 readme = "README.md"
 keywords = ["AMF"]
 license = "MIT OR Apache-2.0"
-edition = "2018"
+edition = "2021"
 
 [badges]
 coveralls = {repository = "sile/amf"}
