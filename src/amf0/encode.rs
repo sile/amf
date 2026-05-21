@@ -155,7 +155,7 @@ mod tests {
     use super::super::Value;
     use crate::amf3;
     use crate::Pair;
-    
+
     use std::time;
 
     macro_rules! encode_eq {
@@ -226,10 +226,7 @@ mod tests {
     #[test]
     fn encodes_ecma_array() {
         let entries = es(&[("0", s("a")), ("1", s("b")), ("2", s("c")), ("3", s("d"))][..]);
-        encode_eq!(
-            Value::EcmaArray { entries },
-            "amf0-ecma-ordinal-array.bin"
-        );
+        encode_eq!(Value::EcmaArray { entries }, "amf0-ecma-ordinal-array.bin");
     }
     #[test]
     fn encodes_string_array() {

@@ -209,7 +209,7 @@ mod tests {
     use crate::Pair;
     use std::f64;
     use std::io;
-    
+
     use std::time;
 
     macro_rules! decode {
@@ -361,10 +361,7 @@ mod tests {
     #[test]
     fn decodes_ecma_array() {
         let entries = es(&[("0", s("a")), ("1", s("b")), ("2", s("c")), ("3", s("d"))][..]);
-        decode_eq!(
-            "amf0-ecma-ordinal-array.bin",
-            Value::EcmaArray { entries }
-        );
+        decode_eq!("amf0-ecma-ordinal-array.bin", Value::EcmaArray { entries });
         decode_unexpected_eof!("amf0-ecma-array-partial.bin");
 
         let entries = es(&[("c", s("d")), ("a", s("b"))][..]);
