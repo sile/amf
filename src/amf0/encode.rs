@@ -155,7 +155,7 @@ mod tests {
     use super::super::Value;
     use crate::amf3;
     use crate::Pair;
-    use std::iter;
+    
     use std::time;
 
     macro_rules! encode_eq {
@@ -197,7 +197,7 @@ mod tests {
     #[test]
     fn encodes_long_string() {
         encode_eq!(
-            Value::String(iter::repeat('a').take(0x10013).collect()),
+            Value::String(std::iter::repeat_n('a', 0x10013).collect()),
             "amf0-long-string.bin"
         );
     }
@@ -227,7 +227,7 @@ mod tests {
     fn encodes_ecma_array() {
         let entries = es(&[("0", s("a")), ("1", s("b")), ("2", s("c")), ("3", s("d"))][..]);
         encode_eq!(
-            Value::EcmaArray { entries: entries },
+            Value::EcmaArray { entries },
             "amf0-ecma-ordinal-array.bin"
         );
     }

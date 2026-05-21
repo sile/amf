@@ -105,7 +105,7 @@ impl PartialEq for DecodeError {
             (&OutOfRangeReference { index: x }, &OutOfRangeReference { index: y }) => x == y,
             (&NonZeroTimeZone { offset: x }, &NonZeroTimeZone { offset: y }) => x == y,
             (&InvalidDate { millis: x }, &InvalidDate { millis: y }) => x == y,
-            (&ExternalizableType { name: ref x }, &ExternalizableType { name: ref y }) => x == y,
+            (ExternalizableType { name: x }, ExternalizableType { name: y }) => x == y,
             _ => false,
         }
     }

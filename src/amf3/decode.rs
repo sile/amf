@@ -311,7 +311,7 @@ where
     }
     fn decode_trait(&mut self, u28: usize) -> DecodeResult<Trait> {
         if (u28 & 0b1) == 0 {
-            let i = (u28 >> 1) as usize;
+            let i = u28 >> 1 ;
             let t = self
                 .traits
                 .get(i)

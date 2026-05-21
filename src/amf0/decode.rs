@@ -209,7 +209,7 @@ mod tests {
     use crate::Pair;
     use std::f64;
     use std::io;
-    use std::iter;
+    
     use std::time;
 
     macro_rules! decode {
@@ -295,7 +295,7 @@ mod tests {
     fn decodes_long_string() {
         decode_eq!(
             "amf0-long-string.bin",
-            Value::String(iter::repeat('a').take(0x10013).collect())
+            Value::String(std::iter::repeat_n('a', 0x10013).collect())
         );
         decode_unexpected_eof!("amf0-long-string-partial.bin");
     }
@@ -363,12 +363,12 @@ mod tests {
         let entries = es(&[("0", s("a")), ("1", s("b")), ("2", s("c")), ("3", s("d"))][..]);
         decode_eq!(
             "amf0-ecma-ordinal-array.bin",
-            Value::EcmaArray { entries: entries }
+            Value::EcmaArray { entries }
         );
         decode_unexpected_eof!("amf0-ecma-array-partial.bin");
 
         let entries = es(&[("c", s("d")), ("a", s("b"))][..]);
-        decode_eq!("amf0-hash.bin", Value::EcmaArray { entries: entries });
+        decode_eq!("amf0-hash.bin", Value::EcmaArray { entries });
     }
     #[test]
     fn decodes_strict_array() {
